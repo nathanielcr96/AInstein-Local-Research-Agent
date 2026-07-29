@@ -1,0 +1,11 @@
+:root {
+    --primary: #e41227;
+}
+
+[data-theme="dark"] {
+    --background: #0f172a;
+}
+
+.message-content {
+    font-size: 15px;
+}

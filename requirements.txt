@@ -1,0 +1,17 @@
+chainlit
+langgraph
+langchain
+langchain-ollama
+pandas
+deepagents
+huggingface_hub
+langgraph-checkpoint-sqlite
+aiosqlite
+sqlalchemy
+faiss-cpu
+langchain-community
+langchain-huggingface
+sentence-transformers
+langchain-mcp-adapters
+arxiv
+pymupdf4llm

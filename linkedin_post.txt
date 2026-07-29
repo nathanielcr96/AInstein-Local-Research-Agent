@@ -1,0 +1,27 @@
+I've been using a personal side project to actually learn AI engineering, instead of just reading about it: a research agent that runs 100% locally — no cloud APIs, no API keys, no cost to run, on models anyone can download and run on their own machine.
+
+The "100% local" part isn't a nice-to-have, it's the whole point of the exercise. It's easy to build an impressive agent when you can throw a frontier model at every problem. It's much harder — and much more educational — when you're stuck with a small local model that hallucinates tool arguments, forgets instructions, and sometimes just stops mid-turn. That constraint is deliberate: the goal isn't a polished product, it's to actually hit the real limitations of local agents and figure out how to engineer around them.
+
+So the scope is narrow on purpose. Instead of an agent that does many things adequately, I'm building one that does one thing well — researching academic papers on arXiv, with real memory of what it's read and discussed — and using that narrow scope to go deep on everything around the model: the tools it calls, how memory is structured, how skills are loaded, how prompts are written, how the whole pipeline is put together. The model itself barely changes; almost everything else does.
+
+What that's looked like in practice:
+
+Memory, split by purpose, not bolted on as an afterthought. Short-term state (the ongoing conversation) is handled separately from long-term memory (a structured, searchable record the agent reads and writes to across sessions). Small local models can't be trusted to remember to save something important on their own — so instead of hoping a prompt instruction works, the important parts are saved automatically, deterministically, outside of the model's control.
+
+Tools engineered for a model that won't call them cleanly. Small models don't reliably follow a tool's exact contract — they pass an argument in an almost-right shape, or guess at a plausible field name instead of the correct one. Rather than expect perfect calls, the tools were made more forgiving on the input side, and prompts were rewritten to be diagnostic rather than descriptive — giving the model an explicit path to notice a call went wrong and self-correct, instead of repeating the same mistake.
+
+Guardrails where the model can't be relied on to behave. Local models sometimes use a tool correctly and then end the turn with nothing written for the user. Rather than hope a prompt fixes that, the agent's structure now enforces it: the model gets a real chance to correct itself, and only falls back to a fixed message if it truly won't cooperate.
+
+Treating every external tool as untrustworthy until proven otherwise. Not every capability an external tool offers is actually useful — one built-in feature looked good on paper until I checked what it actually indexed, and it turned out to duplicate something already built, badly. It got removed rather than left in as dead weight. Same logic applies to tool calls themselves: they can fail silently instead of loudly, so every external call now runs under a bounded timeout instead of being trusted to return.
+
+None of this required a smarter model. It required not trusting any single layer — the model, the tools, the prompt — to behave correctly by default, and building the structure to catch it when it doesn't.
+
+Current limitations I'm treating as the next targets, not as failures:
+- No full-text search over papers yet — memory currently works at the abstract level, not the full paper content.
+- Single local user, by design — this is a personal tool, not a product.
+- Still only one external integration (arXiv) — depth over breadth, for now.
+- A local model still has a real capability ceiling vs. a cloud model — that ceiling is exactly what this project exists to push against.
+
+Next up: full-text memory over actual paper content, and a memory graph connecting papers, topics, and concepts instead of a flat list — so "doing one thing well" keeps getting deeper instead of wider.
+
+#AIEngineering #LLM #LocalAI #Ollama #LangGraph #MCP #OpenSource #AgenticAI
