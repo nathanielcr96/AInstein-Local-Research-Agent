@@ -1,8 +1,11 @@
-# Research Agent
+# AInstein 
+### A 100% Local AI Research Agent
 
 A 100% local AI research agent. It runs on [Ollama](https://ollama.com) and/or HuggingFace models you already have installed locally — the same models you might already be using for other local AI projects — with no calls to external APIs and no paid API keys required.
 
 This project is under active development — this README reflects what is implemented and tested today, not a final vision.
+
+Found something broken? Open an issue — that's exactly the point of this project
 
 ## Table of contents
 
@@ -133,7 +136,7 @@ The model **never** has access to generic filesystem tools (`read_file`, `write_
 - **Reranker**: `cross-encoder/ms-marco-MiniLM-L6-v2` via `langchain_community.cross_encoders.HuggingFaceCrossEncoder`
 - **Conversation persistence**: SQLite (`langgraph-checkpoint-sqlite` + `aiosqlite`)
 - **Model catalog**: the `ollama` python client (capabilities, context length) + `huggingface_hub` (local HF cache)
-- **arXiv integration**: [`arxiv-mcp-server`](https://github.com/blazickjp/arxiv-mcp-server) (local MCP server, installed via `uv`) + `langchain-mcp-adapters` to expose its tools to the agent
+- **arXiv integration**: [`arxiv-mcp-server`](https://github.com/blazickjp/arxiv-mcp-server) (local MCP server, installed via `uv`) + `langchain-mcp-adapters` to expose its tools to AInstein
 - **Observability**: per-turn metrics logged to SQLite (`observability/metrics_store.py`) — no viewer/dashboard yet, see [Roadmap](#roadmap)
 
 ## Prerequisites
@@ -181,7 +184,7 @@ Settings available in the Chainlit sidebar:
 | **Model** | Ollama chat model. Only models with the `completion` capability are listed (embedding models, like `mxbai-embed-large`, don't show up here). |
 | **Embedding Model** | Model used by `search_memory`. Includes Ollama embedding models (`embedding` capability) and HuggingFace ones (detected by the presence of `modules.json` in the local cache — sentence-transformers compatibility), listed together by name — which backend actually serves a given model is resolved internally and not shown in the dropdown. |
 | **Temperature** | Generation temperature for the chat model. |
-| **Memory** | When on, the agent remembers earlier messages from this conversation (via the checkpointer) — and reusing Chainlit's own thread id means resuming this conversation later from the history sidebar continues the exact same agent state, not just the transcript. When off, every message starts with no prior context. |
+| **Memory** | When on, AInstein remembers earlier messages from this conversation (via the checkpointer) — and reusing Chainlit's own thread id means resuming this conversation later from the history sidebar continues the exact same agent state, not just the transcript. When off, every message starts with no prior context. |
 | **Streaming** | Streams the response token by token instead of waiting for the full answer. |
 
 Ollama loads a model into memory the first time it's used in a while, which can take a minute or more with no visible progress otherwise — easy to mistake for the app being frozen. A "⏳ Loading the model…" message is shown for exactly that window, and disappears the moment real output starts (first tool call or first streamed token).
@@ -242,7 +245,7 @@ arXiv access is provided by [`arxiv-mcp-server`](https://github.com/blazickjp/ar
 
 Tools exposed to the model: `search_papers`, `get_abstract`, `download_paper` (in-process, not MCP — see [Tools](#tools)), `read_paper`, `list_papers`, `citation_graph` (via Semantic Scholar), `watch_topic`/`check_alerts` (persistent topic monitoring). Downloaded papers are stored in `papers/` at the project root. The MCP server's own `semantic_search`/`reindex` are deliberately excluded — see [Known limitations](#known-limitations).
 
-**Security**: the text of a paper is external content the agent did not choose and cannot vet — a paper could contain adversarial text designed to look like an instruction. The MCP server itself already tags results as `[EXTERNAL CONTENT]`, and the agent's system prompt explicitly tells it to treat paper text as data to report on, never as commands to follow. This is the same instruction-source boundary applied to any other untrusted input.
+**Security**: the text of a paper is external content AInstein did not choose and cannot vet — a paper could contain adversarial text designed to look like an instruction. The MCP server itself already tags results as `[EXTERNAL CONTENT]`, and AInstein's system prompt explicitly tells it to treat paper text as data to report on, never as commands to follow. This is the same instruction-source boundary applied to any other untrusted input.
 
 The MCP tool set is fetched once (lazily, on first use) and reused for the lifetime of the process — connecting is not repeated on every message.
 
@@ -251,7 +254,7 @@ The MCP tool set is fetched once (lazily, on first use) and reused for the lifet
 - **Small local models are unreliable with complex tool-call sequences** — models like `llama3.2:latest` (3B) have been observed to sometimes pass malformed arguments (e.g. a string where the MCP tool schema strictly requires an integer), or hallucinate tool calls. `EnsureFinalAnswerMiddleware` guarantees a turn never ends blank — first by re-asking the selected model itself (up to 2 tries), then, if it still won't answer, by retrying against a small hardcoded fallback model (`llama3.2:3b`, up to 2 tries), and only then falling back to a fixed message — but none of that fixes the model's own reasoning mistakes mid-turn (a malformed tool call still fails as a malformed tool call). Larger local models (e.g. `cogito:8b`) have been noticeably more reliable in testing, including with the arXiv MCP tools.
 - **Retrieval quality depends heavily on the embedding model and corpus size** — with few entries in memory, raw similarity can rank poorly (which is why the reranker was added). With very small corpora the reranker helps but isn't foolproof.
 - **Long-term memory can only grow** — `update_memory`/`edit_memory` don't auto-consolidate or summarize old entries; there is currently no process that prunes them automatically.
-- **HuggingFace model execution is limited to embeddings** — the catalog detects any cached model, but execution is only implemented for sentence-transformers-compatible embedding models. HF chat/generation models aren't selectable, and this isn't just an unimplemented nicety: `langchain-huggingface`'s `ChatHuggingFace` wrapper was evaluated and its local, offline backend (`HuggingFacePipeline`) doesn't support multi-turn tool-calling at all — verified by reading its source (`_to_chatml_format` raises on a `ToolMessage`, and `_to_chat_prompt` never passes `tools=` into the chat template). Since this agent's whole design depends on tool calls (arXiv, memory, etc.), that's a hard blocker for the library's out-of-the-box local backend, not something a quick fix resolves. A custom tool-calling adapter on top of raw `transformers` was considered and deliberately not built — out of scope for now.
+- **HuggingFace model execution is limited to embeddings** — the catalog detects any cached model, but execution is only implemented for sentence-transformers-compatible embedding models. HF chat/generation models aren't selectable, and this isn't just an unimplemented nicety: `langchain-huggingface`'s `ChatHuggingFace` wrapper was evaluated and its local, offline backend (`HuggingFacePipeline`) doesn't support multi-turn tool-calling at all — verified by reading its source (`_to_chatml_format` raises on a `ToolMessage`, and `_to_chat_prompt` never passes `tools=` into the chat template). Since AInstein's whole design depends on tool calls (arXiv, memory, etc.), that's a hard blocker for the library's out-of-the-box local backend, not something a quick fix resolves. A custom tool-calling adapter on top of raw `transformers` was considered and deliberately not built — out of scope for now.
 - **No code execution sandboxing** — the `execute` tool isn't enabled, so this doesn't apply today, but if it's re-enabled in the future there is no process isolation.
 - **The MCP server's own `semantic_search`/`reindex` were deliberately dropped**, not just left unused — they only embed each paper's short abstract (never the full downloaded text), don't support author/category/date filtering, and duplicate what `search_memory` already covers over the same abstracts (via `PaperMemoryMiddleware`), without a reranker. Full-text RAG over papers (chunked, over actual paper content) isn't built yet (see Roadmap).
 
@@ -263,3 +266,6 @@ The MCP tool set is fetched once (lazily, on first use) and reused for the lifet
 4. Memory graph — relationships between papers, topics, and concepts, not just a flat list of entries. `citation_graph` (via Semantic Scholar) is a natural building block.
 5. Observability dashboard — an interface, possibly external, to visualize and compare the per-turn metrics already being logged (`observability/metrics_store.py`: tokens, latency, tools used) across models/configs. Only the logging exists today; nothing renders it yet.
 6. Skills for working with papers — the skills system (`SkillsMiddleware`, `read_skill`) is wired in but has no skill loaded yet; the plan is to add skills around actual paper workflows (e.g. literature-review structure, note-taking conventions for findings, citation formatting) rather than a generic placeholder example.
+
+## Licence
+Apache 2.0
