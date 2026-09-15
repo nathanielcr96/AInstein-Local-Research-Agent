@@ -95,7 +95,7 @@ reaction_on_message_received = false
 
 [UI]
 # Name of the assistant.
-name = "Research Agent"
+name = "AInstein - Local Research Agent"
 chat_settings_location = "sidebar"
 default_chat_settings_open = true
 
