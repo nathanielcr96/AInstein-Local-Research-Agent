@@ -1,6 +1,7 @@
 import gzip
 import io
 import json
+import logging
 import posixpath
 import re
 import tarfile
@@ -13,13 +14,20 @@ import httpx
 import pymupdf4llm
 from langchain.tools import tool
 
+from core.paper_chunking import ensure_paper_chunks
+
+logger = logging.getLogger(__name__)
+
 # core/arxiv_download.py -> parent is core/, parent.parent is the project
-# root, where papers/ already lives (same folder the arxiv-mcp-server's
-# other tools — read_paper, list_papers — read from via their own
-# --storage-path argument in graph.py). Writing here, under the exact same
+# root, where papers/raw/ lives (same folder the arxiv-mcp-server's other
+# tools — read_paper, list_papers — read from via their own
+# --storage-path argument in graph.py, which points at papers/raw too;
+# see PAPERS_STORAGE_PATH there). Writing here, under the exact same
 # paper_id.md naming convention, is what keeps this tool interchangeable
-# with those MCP-provided ones without touching them.
-PAPERS_DIR = (Path(__file__).parent.parent / "papers").resolve()
+# with those MCP-provided ones without touching them. child/ and parent/
+# chunks (core/paper_chunking.py) live as sibling folders under papers/,
+# not under raw/ — raw/child/parent are peer stages of the same pipeline.
+PAPERS_DIR = (Path(__file__).parent.parent / "papers" / "raw").resolve()
 
 _CONTENT_WARNING = (
     "[UNTRUSTED EXTERNAL CONTENT — arXiv paper. "
@@ -271,11 +279,14 @@ def _flatten_source(files: dict[str, str]) -> str:
 
 def _fetch_latex_content(paper_id: str) -> str | None:
     """Downloads and flattens the original LaTeX source, or None if arXiv
-    has no source available for this paper (e.g. HTTP 404) — callers fall
-    back to HTML/PDF in that case. Genuine processing failures (corrupt
-    archive, unsafe paths, oversized content) raise instead of silently
-    falling back, since those indicate something worth surfacing rather
-    than a routine "this paper has no LaTeX" case.
+    has no usable source for this paper — callers fall back to HTML/PDF in
+    that case. This covers both HTTP 404/403 AND `LatexUnavailableError`
+    (e.g. the e-print endpoint returning the PDF itself with a 200,
+    instead of 404, when a paper was submitted without LaTeX source —
+    verified to happen in practice, not just a theoretical case): both are
+    "this paper has no LaTeX", not a processing failure worth surfacing as
+    an error. Anything else (a genuinely unexpected exception) still
+    propagates.
     """
 
     timeout = httpx.Timeout(connect=30.0, read=120.0, write=30.0, pool=30.0)
@@ -299,8 +310,12 @@ def _fetch_latex_content(paper_id: str) -> str | None:
             return None
         raise
 
-    files = _extract_tex_files(data)
-    return _flatten_source(files)
+    try:
+        files = _extract_tex_files(data)
+        return _flatten_source(files)
+    except LatexUnavailableError:
+        logger.info("No usable LaTeX source for %s, falling back to HTML/PDF", paper_id)
+        return None
 
 
 # --- HTML (second choice: real prose, but no section markup once the
@@ -361,6 +376,17 @@ def _fetch_pdf_content(paper_id: str) -> str:
     than assuming a URL shape directly, since arxiv 4.x dropped
     Result.pdf_url/download_pdf but kept get_short_id() — building the URL
     from that stable identifier stays compatible across arxiv versions.
+
+    Old/scanned arXiv papers with no real text layer at all (rare, but
+    real — reached only when arXiv also has neither LaTeX nor HTML for
+    this paper) used to come back empty here: pymupdf4llm.to_markdown()
+    only reads a PDF's existing text layer by default. It turns out it
+    already has OCR built in, via Tesseract, and uses it completely
+    transparently — no code change needed here, no extra pip dependency —
+    as long as Tesseract is installed and TESSDATA_PREFIX points at its
+    tessdata folder (verified: without that env var it silently returns
+    empty for a text-less page; with it, it detects the missing text
+    layer and OCRs the page itself). See README prerequisites.
     """
 
     client = _get_arxiv_client()
@@ -420,11 +446,13 @@ def _success_payload(paper_id: str, message: str, source: str, content: str, sta
 def download_paper(paper_id: str, start: int = 0, max_chars: int | None = None) -> str:
     """
     Downloads a paper from arXiv and returns its text content, saving it
-    locally in papers/ for later `read_paper`/`list_papers` calls. Tries
-    the original LaTeX source first (real \\section structure, most
-    faithful to the paper's actual organization), then the HTML rendering
-    (clean prose, but no section markup once tags are stripped), and
-    finally PDF-to-markdown conversion (heuristic, only used when arXiv has
+    locally in papers/raw/ for later `read_paper`/`list_papers` calls, and
+    also splitting it into parent/child chunks (papers/parent/,
+    papers/child/) for `search_paper_content` to search over. Tries the
+    original LaTeX source first (real \\section structure, most faithful
+    to the paper's actual organization), then the HTML rendering (clean
+    prose, but no section markup once tags are stripped), and finally
+    PDF-to-markdown conversion (heuristic, only used when arXiv has
     neither of the above for this paper).
 
     Runs in-process rather than through the MCP server the other arXiv
@@ -446,6 +474,7 @@ def download_paper(paper_id: str, start: int = 0, max_chars: int | None = None) 
 
     if path.exists():
         content = path.read_text(encoding="utf-8")
+        ensure_paper_chunks(paper_id, content)
         return _success_payload(paper_id, "Paper already available (returned from cache)", "cache", content, start, max_chars)
 
     try:
@@ -453,16 +482,19 @@ def download_paper(paper_id: str, start: int = 0, max_chars: int | None = None) 
 
         if latex_text is not None:
             path.write_text(latex_text, encoding="utf-8")
+            ensure_paper_chunks(paper_id, latex_text)
             return _success_payload(paper_id, "Paper fetched from arXiv LaTeX source", "latex", latex_text, start, max_chars)
 
         html_text = _fetch_html_content(paper_id)
 
         if html_text is not None:
             path.write_text(html_text, encoding="utf-8")
+            ensure_paper_chunks(paper_id, html_text)
             return _success_payload(paper_id, "Paper fetched from arXiv HTML endpoint", "html", html_text, start, max_chars)
 
         markdown = _fetch_pdf_content(paper_id)
         path.write_text(markdown, encoding="utf-8")
+        ensure_paper_chunks(paper_id, markdown)
         return _success_payload(paper_id, "Paper fetched via PDF conversion", "pdf", markdown, start, max_chars)
 
     except PaperNotFoundError as exc:

@@ -18,6 +18,7 @@ from core.tools import read_skill
 from core.arxiv_download import download_paper as custom_download_paper
 from memory.memory_tools import MEMORY_FILE, _list_memory_entries, update_memory, edit_memory
 from memory.memory_rag import make_search_memory_tool
+from memory.paper_rag import make_search_paper_content_tool
 from core.middleware import ExcludeToolsMiddleware, EnsureFinalAnswerMiddleware, PaperMemoryMiddleware, ArxivTimeoutMiddleware
 from prompts.research_agent_prompt import SYSTEM_PROMPT
 from prompts.skills_prompt import CUSTOM_SKILLS_SYSTEM_PROMPT
@@ -80,8 +81,11 @@ async def get_checkpointer() -> AsyncSqliteSaver:
 # list_papers, citation_graph, watch_topic/check_alerts from it —
 # download_paper is replaced with our own in-process implementation, and
 # semantic_search/reindex are dropped entirely (see below). Downloaded
-# papers are saved to papers/, inside the project — the local paper
-# repository.
+# papers are saved to papers/raw/, inside the project — the local paper
+# repository. This must stay in lockstep with core/arxiv_download.py's
+# PAPERS_DIR (same folder, so read_paper/list_papers here can always find
+# what download_paper wrote there): papers/child/ and papers/parent/
+# (core/paper_chunking.py) are sibling stages, not read via this MCP path.
 #
 # get_tools() is cached the same way as the checkpointer: it's an async
 # resource that can't be resolved at module import time, and there's no
@@ -92,7 +96,7 @@ async def get_checkpointer() -> AsyncSqliteSaver:
 # again — previously the failure was also cached ([]), so a one-off
 # problem left arXiv tools disabled until the whole app restarted, even
 # after the real problem had already been resolved.
-PAPERS_STORAGE_PATH = PROJECT_DIR / "papers"
+PAPERS_STORAGE_PATH = PROJECT_DIR / "papers" / "raw"
 
 _arxiv_tools: list | None = None
 
@@ -261,6 +265,11 @@ async def build_agent(
 
     if has_search_memory:
         agent_tools.append(make_search_memory_tool(embedding_provider, embedding_model))
+        # search_paper_content needs the same embedding model as
+        # search_memory (there's only one embedding choice in the chat
+        # settings, not a separate one per RAG pipeline), so it's gated by
+        # the same has_search_memory check rather than its own condition.
+        agent_tools.append(make_search_paper_content_tool(embedding_provider, embedding_model))
 
     agent_tools += arxiv_tools
 

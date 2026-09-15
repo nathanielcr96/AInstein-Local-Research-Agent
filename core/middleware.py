@@ -15,7 +15,13 @@ from prompts.ensure_final_answer_prompt import (
     FALLBACK_MESSAGE,
     FALLBACK_MODEL_UNAVAILABLE_MESSAGE,
 )
-from memory.memory_tools import MEMORY_FILE, _list_memory_entries, update_memory, edit_memory
+from memory.memory_tools import (
+    update_memory,
+    edit_memory,
+    _parse_kv_block,
+    _format_kv_block,
+    _find_paper_entry,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -223,12 +229,6 @@ class EnsureFinalAnswerMiddleware(AgentMiddleware[Any, Any, Any]):
 
 _TRACKED_ARXIV_TOOLS = {"get_abstract", "download_paper", "read_paper"}
 
-# Field order used when serializing a "paper" memory entry as a flat
-# key: value block, one field per line (kept single-line, including
-# Abstract, so the block can be parsed back with a plain split on the
-# first ":" per line).
-_PAPER_FIELD_ORDER = ["arXiv ID", "Title", "Authors", "Categories", "Published", "Local file", "Abstract"]
-
 
 def _tool_message_text(result: Any) -> str | None:
     if not isinstance(result, ToolMessage):
@@ -238,35 +238,6 @@ def _tool_message_text(result: Any) -> str | None:
         parts = [block.get("text", "") if isinstance(block, dict) else str(block) for block in content]
         return "\n".join(parts)
     return str(content) if content is not None else None
-
-
-def _parse_kv_block(content: str) -> dict[str, str]:
-    fields = {}
-    for line in content.splitlines():
-        if ":" not in line:
-            continue
-        key, _, value = line.partition(":")
-        key = key.strip()
-        if key:
-            fields[key] = value.strip()
-    return fields
-
-
-def _format_kv_block(fields: dict[str, str]) -> str:
-    ordered = [f"{key}: {fields[key]}" for key in _PAPER_FIELD_ORDER if fields.get(key)]
-    extra = [f"{key}: {fields[key]}" for key in fields if key not in _PAPER_FIELD_ORDER and fields.get(key)]
-    return "\n".join(ordered + extra)
-
-
-def _find_paper_entry(paper_id: str) -> dict | None:
-    if not MEMORY_FILE.exists():
-        return None
-    text = MEMORY_FILE.read_text(encoding="utf-8")
-    marker = f"arXiv ID: {paper_id}"
-    for entry in _list_memory_entries(text):
-        if entry["category"] == "paper" and marker in entry["content"]:
-            return entry
-    return None
 
 
 class PaperMemoryMiddleware(AgentMiddleware[Any, Any, Any]):
@@ -344,7 +315,7 @@ class PaperMemoryMiddleware(AgentMiddleware[Any, Any, Any]):
             new_fields["Published"] = payload.get("published", "")
             new_fields["Abstract"] = (payload.get("abstract") or "").replace("\n", " ").strip()
         else:
-            new_fields["Local file"] = f"papers/{paper_id}.md (full text retrieved)"
+            new_fields["Local file"] = f"papers/raw/{paper_id}.md (full text retrieved)"
 
         existing = _find_paper_entry(paper_id)
 

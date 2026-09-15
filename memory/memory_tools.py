@@ -61,6 +61,44 @@ def _list_memory_entries(text: str) -> list[dict]:
 
     return entries
 
+# Field order used when serializing a "paper" memory entry as a flat
+# key: value block, one field per line (kept single-line, including
+# Abstract, so the block can be parsed back with a plain split on the
+# first ":" per line). Shared by PaperMemoryMiddleware (core/middleware.py,
+# writes these entries) and the paper-content RAG (memory/paper_rag.py,
+# reads Title/Authors back out for citation headers).
+_PAPER_FIELD_ORDER = ["arXiv ID", "Title", "Authors", "Categories", "Published", "Local file", "Abstract"]
+
+
+def _parse_kv_block(content: str) -> dict[str, str]:
+    fields = {}
+    for line in content.splitlines():
+        if ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        key = key.strip()
+        if key:
+            fields[key] = value.strip()
+    return fields
+
+
+def _format_kv_block(fields: dict[str, str]) -> str:
+    ordered = [f"{key}: {fields[key]}" for key in _PAPER_FIELD_ORDER if fields.get(key)]
+    extra = [f"{key}: {fields[key]}" for key in fields if key not in _PAPER_FIELD_ORDER and fields.get(key)]
+    return "\n".join(ordered + extra)
+
+
+def _find_paper_entry(paper_id: str) -> dict | None:
+    if not MEMORY_FILE.exists():
+        return None
+    text = MEMORY_FILE.read_text(encoding="utf-8")
+    marker = f"arXiv ID: {paper_id}"
+    for entry in _list_memory_entries(text):
+        if entry["category"] == "paper" and marker in entry["content"]:
+            return entry
+    return None
+
+
 def _next_entry_id(text: str) -> str:
     ids = [int(m.group(1)) for m in _ENTRY_START_RE.finditer(text)]
     return f"{(max(ids) + 1) if ids else 1:06d}"

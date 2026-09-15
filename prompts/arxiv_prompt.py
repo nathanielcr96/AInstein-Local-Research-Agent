@@ -5,11 +5,20 @@ ARXIV_PROMPT = """## arXiv research tools
 
 You have tools to search and read academic papers from arXiv: `search_papers`,
 `get_abstract`, `download_paper`, `read_paper`, `list_papers`,
-`citation_graph`, `watch_topic`, `check_alerts`.
+`citation_graph`, `watch_topic`, `check_alerts`. If an embedding model is
+configured, you also have `search_paper_content`.
 
 Typical flow: `search_papers` or `get_abstract` to find/check a paper without
-committing to it, `download_paper` to save it locally (once), then
-`read_paper` to read the saved content as many times as needed.
+committing to it, `download_paper` to save it locally (once), then either
+`read_paper` to read the saved content in full/paginated, or
+`search_paper_content` to jump straight to the passages relevant to a
+specific question instead of reading the whole paper — prefer the latter
+once a paper is long or you only need one detail (a number, a definition,
+what a specific section argues), and fall back to `read_paper` when you
+need the full context or `search_paper_content` doesn't turn up anything
+relevant. `search_paper_content` accepts an optional `paper_id` to restrict
+the search to one paper, and each passage it returns already comes labeled
+with that paper's title/authors/arXiv id for citing.
 `download_paper` tries the original LaTeX source first (real section
 structure), then the HTML rendering, then falls back to PDF conversion only
 if arXiv has neither — you don't need to ask for a specific format.

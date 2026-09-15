@@ -20,6 +20,7 @@ Found something broken? Open an issue — that's exactly the point of this proje
 - [Chat configuration](#chat-configuration)
 - [Project structure](#project-structure)
 - [How memory works](#how-memory-works)
+- [How paper-content RAG works](#how-paper-content-rag-works)
 - [arXiv integration](#arxiv-integration)
 - [Known limitations](#known-limitations)
 - [Roadmap](#roadmap)
@@ -36,7 +37,7 @@ Beyond the assistant itself, this project exists to actually learn — hands-on,
 - Build RAG pipelines over different kinds of underlying structure, not just one fixed content shape.
 - Learn the real limitations of small local models firsthand — worse tool use, worse answers, infinite loops around tool calls, etc. — instead of assuming a bigger model would just make the problem disappear.
 - Manage model traceability/observability — local in this project specifically, but the approach should generalize beyond local setups.
-- Build a multimodal document-analysis pipeline.
+- Build a multimodal document-analysis pipeline. First step done: OCR (via Tesseract) recovers text from scanned/image-only PDFs; understanding figures, diagrams, and charts themselves isn't built yet.
 - Manage a repository structure for correctly storing external documents (papers, in this case) through their proper stages — raw, processed, etc. — instead of collapsing everything into one flat blob.
 - Build a set of skills for hands-on paper analysis — keyword finding, paper summarization, etc. — with the ability to personalize the strategies used, since different users may want to focus on different things from a paper.
 
@@ -69,8 +70,9 @@ A personal research agent that:
 | Agent build caching (no full rebuild on every message) | ✅ Implemented |
 | arXiv paper search and reading (via MCP) | ✅ Implemented |
 | arXiv paper download | ✅ Implemented — in-process (`core/arxiv_download.py`), not via MCP; see [Tools](#tools) |
-| Local repository of downloaded papers | ✅ Implemented (`papers/`, written by `download_paper`) |
-| RAG over paper content | ⏳ Pending — dropped the MCP server's own `semantic_search` (abstract-only, no author/category/date filtering, redundant with `search_memory`); full-text RAG over papers not yet built |
+| Local repository of downloaded papers | ✅ Implemented (`papers/raw/`, written by `download_paper`) |
+| RAG over paper content | ✅ Implemented — hierarchical parent/child chunking (`core/paper_chunking.py`) + FAISS/reranker search over child chunks, expanded to parent chunks for context (`search_paper_content`); see [How paper-content RAG works](#how-paper-content-rag-works) |
+| Multimodal processing (image → text for scanned/text-less PDFs) | ✅ Implemented (optional) — Tesseract OCR, built into `pymupdf4llm` and used transparently when available; a first, narrow step toward the broader multimodal-document-analysis goal (figures/diagrams/charts aren't analyzed, only scanned text is recovered) |
 | Memory graph (relationships between papers/topics) | ⏳ Pending |
 | Execution of HuggingFace models (beyond cataloging them) | ⏳ Pending (embeddings yes, text generation no) |
 
@@ -90,6 +92,7 @@ flowchart TD
     Tools --> ReadSkill["read_skill"]
     Tools --> UpdateMem["update_memory / edit_memory"]
     Tools --> SearchMem["search_memory"]
+    Tools --> SearchPaperContent["search_paper_content"]
     Tools --> ArxivTools["arXiv MCP tools<br/>search_papers · read_paper · ..."]
     Tools --> CustomDownload["download_paper<br/>in-process (core/arxiv_download.py), not MCP"]
 
@@ -97,12 +100,22 @@ flowchart TD
     FAISS --> Embeddings["Embeddings<br/>Ollama or HuggingFace, chosen in Settings"]
     FAISS --> Reranker["Reranker<br/>cross-encoder/ms-marco-MiniLM-L6-v2"]
 
+    SearchPaperContent --> ChildFAISS["FAISS index over child chunks<br/>(rebuilt from papers/child/*.jsonl)"]
+    ChildFAISS --> Embeddings
+    ChildFAISS --> Reranker
+    ChildFAISS -. expands to .-> ParentDir["papers/parent/<br/>(parent chunk text)"]
+
     UpdateMem --> MDFile["memory/store/long_term.md<br/>(source of truth)"]
     FAISS -. rebuilt from .-> MDFile
 
+    CustomDownload --> Chunking["core/paper_chunking.py<br/>parent/child splitting"]
+    Chunking --> ParentDir
+    Chunking --> ChildDir["papers/child/<br/>(child chunk text, embedded)"]
+    ChildFAISS -. rebuilt from .-> ChildDir
+
     ArxivTools --> MCP["arxiv-mcp-server<br/>(local subprocess, stdio)"]
     MCP --> ArxivAPI["arXiv.org public API"]
-    MCP --> PapersDir["papers/<br/>(downloaded paper storage)"]
+    MCP --> PapersDir["papers/raw/<br/>(downloaded paper storage)"]
 ```
 
 The model **never** has access to generic filesystem tools (`read_file`, `write_file`, `edit_file`, `ls`, `glob`, `grep`, `execute`) or subagents (`task`) — these are explicitly hidden via `ExcludeToolsMiddleware`. Everything the model can read or write goes through purpose-scoped tools (`read_skill`, `update_memory`, `edit_memory`, `search_memory`), each restricted to a single folder or file.
@@ -115,9 +128,10 @@ The model **never** has access to generic filesystem tools (`read_file`, `write_
 | `update_memory(content, category)` | Adds a new long-term memory entry. | `category` is one of `preference`, `research_topic`, `keyword`, `paper`, `note`. Only ever touches `memory/store/long_term.md`. |
 | `edit_memory(entry_id, content=None, category=None, delete=False)` | Replaces, corrects, or deletes an existing memory entry. | Affects exactly one entry, located by id — never rewrites the rest of the file. |
 | `search_memory(query, k=5)` | Semantic search over long-term memory. | Retrieves up to 15 candidates via FAISS, reranks them with a cross-encoder, returns the top `k`. |
+| `search_paper_content(query, paper_id=None, k=5)` | Semantic search over the full text of downloaded papers — not just abstracts. | Searches child chunks via FAISS + reranker, returns their parent chunks (deduped), each labeled with the paper's title/authors/arXiv id. Restrict to one paper with `paper_id`. See [How paper-content RAG works](#how-paper-content-rag-works). |
 | `search_papers(query, max_results, date_from, date_to, categories, sort_by)` | Searches arXiv by keywords/filters. | arXiv MCP tool. Rate-limited to arXiv's own policy. |
 | `get_abstract(paper_id)` | Fetches a paper's abstract and metadata without downloading it. | arXiv MCP tool. |
-| `download_paper(paper_id, start, max_chars)` | Downloads a paper's full text (LaTeX source preferred for real section structure, then HTML, then PDF conversion as last resort) into `papers/`. | Runs in-process (`core/arxiv_download.py`), not through the MCP server — the MCP round-trip for this specific tool was found to hang unpredictably (minutes, or indefinitely) even when the same fetch/convert logic run directly completes in under a minute. |
+| `download_paper(paper_id, start, max_chars)` | Downloads a paper's full text (LaTeX source preferred for real section structure, then HTML, then PDF conversion as last resort) into `papers/raw/`, and splits it into parent/child chunks for `search_paper_content`. | Runs in-process (`core/arxiv_download.py`), not through the MCP server — the MCP round-trip for this specific tool was found to hang unpredictably (minutes, or indefinitely) even when the same fetch/convert logic run directly completes in under a minute. |
 | `read_paper(paper_id, start, max_chars)` | Reads a paper previously saved with `download_paper`. | arXiv MCP tool. |
 | `list_papers()` | Lists all papers downloaded so far. | arXiv MCP tool. |
 | `citation_graph(paper_id)` | Papers that cite, and are cited by, a given paper. | arXiv MCP tool, via Semantic Scholar. |
@@ -134,6 +148,7 @@ The model **never** has access to generic filesystem tools (`read_file`, `write_
 - **Embeddings**: `OllamaEmbeddings` or `HuggingFaceEmbeddings` (`langchain-huggingface` + `sentence-transformers`), configurable per session
 - **Vector store**: [FAISS](https://github.com/facebookresearch/faiss) (`faiss-cpu`, local, no server)
 - **Reranker**: `cross-encoder/ms-marco-MiniLM-L6-v2` via `langchain_community.cross_encoders.HuggingFaceCrossEncoder`
+- **Paper chunking**: `langchain-text-splitters`' `RecursiveCharacterTextSplitter`, sized by actual token count via `tiktoken` (`cl100k_base`), not a character-count approximation
 - **Conversation persistence**: SQLite (`langgraph-checkpoint-sqlite` + `aiosqlite`)
 - **Model catalog**: the `ollama` python client (capabilities, context length) + `huggingface_hub` (local HF cache)
 - **arXiv integration**: [`arxiv-mcp-server`](https://github.com/blazickjp/arxiv-mcp-server) (local MCP server, installed via `uv`) + `langchain-mcp-adapters` to expose its tools to AInstein
@@ -153,6 +168,8 @@ The model **never** has access to generic filesystem tools (`read_file`, `write_
   ```
 - [`uv`](https://docs.astral.sh/uv/) installed — the arXiv MCP server (with its `pdf` extra, needed to read papers) is pulled automatically on first use via `uv tool run`, no manual install step required.
 - Disk space for automatic downloads on first use: the reranker (~90MB) and, if a HuggingFace embedding model is chosen, `sentence-transformers`/`torch` must already be installed (see below) plus the model itself.
+- Network access the first time a paper is downloaded, to fetch `tiktoken`'s `cl100k_base` encoding (a couple MB) used to size paper chunks by token count — cached locally afterward, not needed again.
+- **Optional**: [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) installed, with `TESSDATA_PREFIX` (pointing at its `tessdata` folder) set in `.env` alongside `CHAINLIT_AUTH_SECRET`. Only needed for the rare case of an arXiv paper with no LaTeX/HTML and a PDF that's a scan with no real text layer — `pymupdf4llm` already has Tesseract OCR support built in and uses it completely transparently once it can find Tesseract this way; without it, that specific case still silently returns empty text, same as before.
 
 ### Tested with
 
@@ -200,6 +217,7 @@ Since this app has a single local user, a brand new session (new tab, page refre
 ├── core/
 │   ├── tools.py                # General-purpose tools: read_skill
 │   ├── arxiv_download.py        # download_paper — in-process (not MCP), see Tools below
+│   ├── paper_chunking.py        # ensure_paper_chunks — parent/child splitting for search_paper_content
 │   ├── middleware.py            # ExcludeToolsMiddleware, EnsureFinalAnswerMiddleware, PaperMemoryMiddleware, ArxivTimeoutMiddleware (custom)
 │   ├── chainlit_data.py          # SQLite-backed Chainlit data layer (history sidebar/resume) + local-only auth
 │   ├── ollama_functions.py      # Ollama model catalog (capabilities, context length) + LLM metrics
@@ -211,16 +229,20 @@ Since this app has a single local user, a brand new session (new tab, page refre
 │   ├── arxiv_prompt.py              # arXiv tools prompt (includes the untrusted-content warning)
 │   └── ensure_final_answer_prompt.py # NUDGE_MESSAGE / FALLBACK_MESSAGE / FALLBACK_MODEL_UNAVAILABLE_MESSAGE (EnsureFinalAnswerMiddleware)
 ├── memory/
-│   ├── memory_tools.py        # update_memory / edit_memory — long-term memory
+│   ├── memory_tools.py        # update_memory / edit_memory — long-term memory + paper-entry metadata helpers
 │   ├── memory_rag.py          # search_memory — FAISS + embeddings + reranker
-│   └── store/                 # Generated data: long_term.md (do not version-control)
+│   ├── paper_rag.py            # search_paper_content — FAISS + reranker over child chunks, parent expansion
+│   └── store/                 # Generated data: long_term.md (tracked — kept as real example data, not gitignored)
 ├── skills/                    # User-added skills go here (progressive disclosure via read_skill)
 ├── observability/
 │   ├── metrics_store.py       # log_turn — per-turn metrics (tokens, timings, tools used)
 │   └── metrics.sqlite         # Generated data (do not version-control)
-├── papers/                    # Downloaded papers (managed by arxiv-mcp-server, do not version-control)
-├── checkpoints.sqlite         # Persisted conversation state (do not version-control)
-├── chainlit_data.sqlite       # Thread history for the sidebar (do not version-control)
+├── papers/                    # Tracked — kept as real example data, not gitignored
+│   ├── raw/                    # Downloaded papers, full text
+│   ├── parent/                 # Parent chunks, ~1200 tokens each, one .jsonl per paper
+│   └── child/                  # Child chunks, ~350 tokens each, embedded for search_paper_content
+├── checkpoints.sqlite         # Persisted conversation state (tracked — kept as real example data, not gitignored)
+├── chainlit_data.sqlite       # Thread history for the sidebar (tracked — kept as real example data, not gitignored)
 ├── .env                       # CHAINLIT_AUTH_SECRET (do not version-control, never commit)
 └── requirements.txt
 ```
@@ -239,11 +261,21 @@ There are two independent memory systems, solving different problems:
 
 The FAISS index is a derived cache that gets rebuilt in memory whenever `long_term.md` changes — it's never persisted to disk, so it can never drift out of sync with the source of truth.
 
+## How paper-content RAG works
+
+`search_memory` only covers paper *abstracts* (via `PaperMemoryMiddleware`) — it never sees the actual downloaded text. `search_paper_content` does, using a hierarchical (parent/child) chunking scheme instead of one flat index:
+
+1. Every time `download_paper` succeeds, `core/paper_chunking.py` splits the full text into **parent chunks** (~1200 tokens, some overlap) and, within each parent, further into **child chunks** (~350 tokens, some overlap) — sized by real token count (`tiktoken`, `cl100k_base`), not characters. Written once as `papers/parent/<paper_id>.jsonl` and `papers/child/<paper_id>.jsonl` (one chunk per line); a paper that's already been chunked is never rechunked.
+2. `search_paper_content` embeds and searches the **child** chunks (small enough for precise similarity search), reranks the candidates with the same cross-encoder `search_memory` uses, then **expands each surviving child to its parent chunk** — wide enough to actually be useful context — deduping so a paper's neighboring children that share a parent only produce one block.
+3. Each returned block is prefixed with a short citation header (arXiv id, title, authors) pulled from the same metadata `PaperMemoryMiddleware` already saves to `memory/store/long_term.md` — not stored a third time.
+
+Like the long-term memory FAISS index, the child-chunk index is a derived cache rebuilt in memory (from `papers/child/*.jsonl`) whenever that folder's contents change or the embedding model changes — `papers/parent/`/`papers/child/` are the durable artifacts, the index itself isn't persisted to disk.
+
 ## arXiv integration
 
 arXiv access is provided by [`arxiv-mcp-server`](https://github.com/blazickjp/arxiv-mcp-server), a local [MCP](https://modelcontextprotocol.io) server launched as a subprocess (`uv tool run arxiv-mcp-server`, stdio transport) and connected via `langchain-mcp-adapters`. No API key — arXiv's API is free and public.
 
-Tools exposed to the model: `search_papers`, `get_abstract`, `download_paper` (in-process, not MCP — see [Tools](#tools)), `read_paper`, `list_papers`, `citation_graph` (via Semantic Scholar), `watch_topic`/`check_alerts` (persistent topic monitoring). Downloaded papers are stored in `papers/` at the project root. The MCP server's own `semantic_search`/`reindex` are deliberately excluded — see [Known limitations](#known-limitations).
+Tools exposed to the model: `search_papers`, `get_abstract`, `download_paper` (in-process, not MCP — see [Tools](#tools)), `read_paper`, `list_papers`, `citation_graph` (via Semantic Scholar), `watch_topic`/`check_alerts` (persistent topic monitoring), plus the custom `search_paper_content` (see [How paper-content RAG works](#how-paper-content-rag-works)). Downloaded papers are stored in `papers/raw/` at the project root. The MCP server's own `semantic_search`/`reindex` are deliberately excluded — see [Known limitations](#known-limitations).
 
 **Security**: the text of a paper is external content AInstein did not choose and cannot vet — a paper could contain adversarial text designed to look like an instruction. The MCP server itself already tags results as `[EXTERNAL CONTENT]`, and AInstein's system prompt explicitly tells it to treat paper text as data to report on, never as commands to follow. This is the same instruction-source boundary applied to any other untrusted input.
 
@@ -256,13 +288,15 @@ The MCP tool set is fetched once (lazily, on first use) and reused for the lifet
 - **Long-term memory can only grow** — `update_memory`/`edit_memory` don't auto-consolidate or summarize old entries; there is currently no process that prunes them automatically.
 - **HuggingFace model execution is limited to embeddings** — the catalog detects any cached model, but execution is only implemented for sentence-transformers-compatible embedding models. HF chat/generation models aren't selectable, and this isn't just an unimplemented nicety: `langchain-huggingface`'s `ChatHuggingFace` wrapper was evaluated and its local, offline backend (`HuggingFacePipeline`) doesn't support multi-turn tool-calling at all — verified by reading its source (`_to_chatml_format` raises on a `ToolMessage`, and `_to_chat_prompt` never passes `tools=` into the chat template). Since AInstein's whole design depends on tool calls (arXiv, memory, etc.), that's a hard blocker for the library's out-of-the-box local backend, not something a quick fix resolves. A custom tool-calling adapter on top of raw `transformers` was considered and deliberately not built — out of scope for now.
 - **No code execution sandboxing** — the `execute` tool isn't enabled, so this doesn't apply today, but if it's re-enabled in the future there is no process isolation.
-- **The MCP server's own `semantic_search`/`reindex` were deliberately dropped**, not just left unused — they only embed each paper's short abstract (never the full downloaded text), don't support author/category/date filtering, and duplicate what `search_memory` already covers over the same abstracts (via `PaperMemoryMiddleware`), without a reranker. Full-text RAG over papers (chunked, over actual paper content) isn't built yet (see Roadmap).
+- **The MCP server's own `semantic_search`/`reindex` were deliberately dropped**, not just left unused — they only embed each paper's short abstract (never the full downloaded text), don't support author/category/date filtering, and duplicate what `search_memory` already covers over the same abstracts (via `PaperMemoryMiddleware`), without a reranker. Full-text RAG over papers (chunked, over actual paper content) is now covered instead by `search_paper_content` — see [How paper-content RAG works](#how-paper-content-rag-works).
+- **Paper chunk sizes are fixed, not adaptive** — every paper is split at the same ~1200/~350-token parent/child sizes regardless of its own structure (e.g. a paper's actual section boundaries aren't used to align chunk edges), and chunks, once written, are never regenerated even if the chunking logic changes later — only deleting `papers/parent/`/`papers/child/` (or the specific paper's `.jsonl` files) and re-running `download_paper` picks up a new scheme.
+- **OCR fallback for scanned PDFs is whole-document, not per-page** — the PDF path (last resort, after LaTeX/HTML both fail) relies on `pymupdf4llm`'s own built-in Tesseract OCR support, which only kicks in transparently if Tesseract is installed and discoverable (see [Prerequisites](#prerequisites)); a paper with a real text layer on some pages and scanned images on others still won't get those specific pages OCR'd, only papers with no text layer at all.
 
 ## Roadmap
 
 1. ~~arXiv integration (paper search and download)~~ — done; search/reading via MCP, download in-process (`core/arxiv_download.py`).
-2. ~~Local repository of downloaded papers~~ — done, written by `download_paper` to `papers/`.
-3. Full-text RAG over paper content — chunk the actual downloaded papers (not just abstracts) into our own FAISS/`memory_rag.py` pipeline, with reranking, instead of the abstract-only search the MCP server's `semantic_search` offered (now removed).
+2. ~~Local repository of downloaded papers~~ — done, written by `download_paper` to `papers/raw/`.
+3. ~~Full-text RAG over paper content~~ — done; hierarchical parent/child chunking (`core/paper_chunking.py`) + FAISS/reranker search over child chunks (`search_paper_content`, `memory/paper_rag.py`), expanded to parent chunks for context, instead of the abstract-only search the MCP server's `semantic_search` offered (now removed).
 4. Memory graph — relationships between papers, topics, and concepts, not just a flat list of entries. `citation_graph` (via Semantic Scholar) is a natural building block.
 5. Observability dashboard — an interface, possibly external, to visualize and compare the per-turn metrics already being logged (`observability/metrics_store.py`: tokens, latency, tools used) across models/configs. Only the logging exists today; nothing renders it yet.
 6. Skills for working with papers — the skills system (`SkillsMiddleware`, `read_skill`) is wired in but has no skill loaded yet; the plan is to add skills around actual paper workflows (e.g. literature-review structure, note-taking conventions for findings, citation formatting) rather than a generic placeholder example.

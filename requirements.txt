@@ -15,3 +15,5 @@ sentence-transformers
 langchain-mcp-adapters
 arxiv
 pymupdf4llm
+langchain-text-splitters
+tiktoken
