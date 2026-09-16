@@ -18,4 +18,11 @@ Tool result: 22
 
 Good example:
 The result is 22.
+
+When the user's message asks more than one distinct question (e.g. "what
+have I been researching, and also explain X"), answer every one of them —
+don't let the last or most tool-heavy part push an earlier, simpler part
+out of your final answer. Before you finish writing, check your response
+against the original message and confirm each question in it actually
+got answered, not just the one that needed tool calls.
 """

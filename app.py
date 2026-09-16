@@ -1,6 +1,7 @@
 import sys
 import asyncio
 import chainlit as cl
+import json
 import logging
 import time
 import uuid
@@ -114,6 +115,36 @@ def _format_tool_output(output) -> str:
         return "\n".join(parts)
 
     return str(content)
+
+def _extract_tool_status(output) -> str:
+    """
+    Best-effort read of whether a tool call actually succeeded, for the
+    observability dashboard's success/error breakdown. Two sources, in
+    order: (1) `ToolMessage.status`, set explicitly to "error" by
+    `ExcludeToolsMiddleware`/`ArxivTimeoutMiddleware` when they reject or
+    time out a call before it ever reaches the real tool; (2) a "status"
+    field in the tool's own JSON output — most tools in this project
+    (`citation_graph`, `search_papers`, `download_paper`...) report
+    success/error/rate_limited this way even when the LangChain-level call
+    itself didn't raise. Defaults to "success" when neither is present,
+    which covers plain-text tools (`read_skill`, `search_paper_content`)
+    that have no notion of partial failure to report.
+    """
+
+    status = getattr(output, "status", None)
+
+    if status == "error":
+        return "error"
+
+    try:
+        payload = json.loads(_format_tool_output(output))
+    except (json.JSONDecodeError, TypeError):
+        return "success"
+
+    if isinstance(payload, dict) and isinstance(payload.get("status"), str):
+        return payload["status"]
+
+    return "success"
 
 def _friendly_error_message(exc: Exception) -> str:
     """
@@ -269,12 +300,32 @@ async def main(message: cl.Message):
             settings.get("embedding_model")
         )
 
+        # No chat-settings toggle for this — same auto-detect treatment as
+        # arXiv tool availability. Picks the first vision-capable model
+        # found (if any); with none installed (the common case), this is
+        # just None and analyze_paper_figures never gets added.
+        vision_model = next(
+            (name for name, info in models_info.items() if info["is_vision"]),
+            None
+        )
+
+        num_ctx = models_info[settings["model"]]["context_length"]
+
+        # Not yet a chat-settings toggle — see graph.py's build_agent for
+        # why this defaults to False. Resolved as its own variable (rather
+        # than relying on build_agent's own default) so the exact value
+        # actually used for this turn is available below to log alongside
+        # everything else in metrics.sqlite.
+        reasoning = False
+
         agent = await build_agent(
             model_name = settings["model"],
             temperature = settings["temperature"],
-            num_ctx = models_info[settings["model"]]["context_length"],
+            num_ctx = num_ctx,
             embedding_provider = embedding_provider,
-            embedding_model = embedding_model
+            embedding_model = embedding_model,
+            vision_model = vision_model,
+            reasoning = reasoning
         )
 
         async for event in agent.astream_events(
@@ -286,7 +337,17 @@ async def main(message: cl.Message):
                     }
                 ]
             },
-            config={"configurable": {"thread_id": thread_id}},
+            # recursion_limit: deepagents' create_deep_agent() binds 9999 via
+            # .with_config(...), but that default doesn't survive an explicit
+            # config= passed at call time (verified live: without this, a
+            # real turn hit LangGraph's raw default of 25 — and since
+            # deepagents adds its own before_agent/after_model middleware
+            # nodes (PatchToolCallsMiddleware, TodoListMiddleware) on top of
+            # model/tools, one round of tool calls costs ~5 graph steps, not
+            # 2 — so 25 was only ~5 rounds of real budget, not 25. 50 gives
+            # ~10 rounds, enough for a multi-paper research turn without
+            # being effectively unlimited.
+            config={"configurable": {"thread_id": thread_id}, "recursion_limit": 50},
             version="v2"
         ):
 
@@ -328,18 +389,19 @@ async def main(message: cl.Message):
                     - tool_metrics[run_id]["start_time"]
                 )
 
+                output = event["data"].get("output")
+
                 conversation_metrics["tool_calls"] += 1
                 conversation_metrics["tool_time"] += duration
                 conversation_metrics["tools_used"].append({
                     "tool": tool_name,
-                    "duration": round(duration, 3)
+                    "duration": round(duration, 3),
+                    "status": _extract_tool_status(output)
                 })
 
                 step = steps.get(run_id)
 
                 if step:
-
-                    output = event["data"].get("output")
 
                     output_raw = _format_tool_output(output)
 
@@ -424,6 +486,8 @@ async def main(message: cl.Message):
             embedding_provider = embedding_provider,
             embedding_model = embedding_model,
             temperature = settings["temperature"],
+            num_ctx = num_ctx,
+            reasoning = reasoning,
             metrics = conversation_metrics
         )
     except Exception:

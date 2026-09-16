@@ -116,10 +116,23 @@ def update_memory(content: str, category: str = "note") -> str:
     """
     Adds a NEW entry to long-term memory (memory/store/long_term.md).
 
-    category must be one of: "preference" (how you should behave),
-    "research_topic" (active research topic), "keyword" (a relevant
-    keyword), "paper" (a paper searched for or found), "note" (anything
-    else worth remembering).
+    category must be one of:
+    - "research_topic" — a research goal/direction the user is actively
+      pursuing, e.g. "understanding attention mechanisms and efficient
+      fine-tuning (LoRA/QLoRA)". Use this for "I'm starting to study X" /
+      "I want to understand Y" — the topic itself, not an instruction to you.
+    - "preference" — a standing instruction for how YOU should behave or
+      respond going forward, e.g. "always give the intuition before the
+      formula". Only for instructions directed at your own behavior, never
+      for what the user is researching.
+    - "keyword" — one specific term/concept worth resurfacing later, e.g.
+      "parameter-efficient fine-tuning (PEFT)" — narrower than a whole
+      research_topic.
+    - "paper" — do NOT call this yourself for a paper you searched for or
+      looked up: download_paper/get_abstract/read_paper already record
+      that automatically. Only relevant via edit_memory, to add a genuine
+      finding to a paper's existing entry.
+    - "note" — anything else worth remembering that doesn't fit above.
 
     This tool only ADDS. Every entry you save will show up in your memory
     with an id in brackets, e.g. "[000003]". If new information replaces

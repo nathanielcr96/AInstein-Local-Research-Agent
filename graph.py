@@ -16,14 +16,15 @@ from langchain_ollama import ChatOllama
 
 from core.tools import read_skill
 from core.arxiv_download import download_paper as custom_download_paper
+from core.figure_analysis import make_analyze_paper_figures_tool
 from memory.memory_tools import MEMORY_FILE, _list_memory_entries, update_memory, edit_memory
 from memory.memory_rag import make_search_memory_tool
 from memory.paper_rag import make_search_paper_content_tool
-from core.middleware import ExcludeToolsMiddleware, EnsureFinalAnswerMiddleware, PaperMemoryMiddleware, ArxivTimeoutMiddleware
+from core.middleware import ExcludeToolsMiddleware, EnsureFinalAnswerMiddleware, PaperMemoryMiddleware, ArxivTimeoutMiddleware, ForcePaperAnalysisSkillMiddleware
 from prompts.research_agent_prompt import SYSTEM_PROMPT
 from prompts.skills_prompt import CUSTOM_SKILLS_SYSTEM_PROMPT
 from prompts.memory_prompt import MEMORY_PROMPT_TEMPLATE, MEMORY_SEARCH_PROMPT
-from prompts.arxiv_prompt import ARXIV_PROMPT
+from prompts.arxiv_prompt import ARXIV_PROMPT, FIGURE_ANALYSIS_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,17 @@ async def get_checkpointer() -> AsyncSqliteSaver:
     if _checkpointer is None:
 
         conn = await aiosqlite.connect(str(CHECKPOINT_DB_PATH))
+
+        # Without this, sqlite3's default busy behavior under aiosqlite
+        # left two connections to this same file (e.g. two processes,
+        # accidentally, testing the same thread_id concurrently — observed
+        # live in this environment's background-task runner, which can
+        # double-spawn a "backgrounded" command) free to block each other
+        # indefinitely on a write lock, with no error and no timeout, which
+        # looks indistinguishable from the model itself being stuck. A
+        # concrete busy_timeout turns that into a fast, clear
+        # "database is locked" error instead of a silent multi-hour hang.
+        await conn.execute("PRAGMA busy_timeout = 15000")
 
         _checkpointer = AsyncSqliteSaver(conn)
 
@@ -190,7 +202,9 @@ async def build_agent(
     temperature: float = 0,
     num_ctx: int = 16384,
     embedding_provider: str | None = None,
-    embedding_model: str | None = None
+    embedding_model: str | None = None,
+    vision_model: str | None = None,
+    reasoning: bool = False
 ):
 
     memory_mtime = MEMORY_FILE.stat().st_mtime if MEMORY_FILE.exists() else None
@@ -229,7 +243,7 @@ async def build_agent(
     cache_key = (
         model_name, temperature, num_ctx,
         embedding_provider, embedding_model, memory_mtime,
-        bool(arxiv_tools)
+        bool(arxiv_tools), vision_model, reasoning
     )
 
     if cache_key in _agent_cache:
@@ -249,11 +263,47 @@ async def build_agent(
     # fraction-based thresholds (85% triggers summarization, the last 10%
     # is kept) already correctly computed against this model's real
     # context.
+    # reasoning defaults to False (now a parameter, see below, so the value
+    # actually used is observable/loggable from app.py instead of being a
+    # literal buried in this call — needed for the observability dashboard
+    # to compare reasoning=True vs False turns empirically instead of only
+    # from manual testing notes): for the vision call in core/figure_analysis.py this
+    # was already known to matter (a reasoning-capable model can spend its
+    # whole output budget "thinking" and return empty content). Verified
+    # live that it matters here too, for the main chat model: with
+    # reasoning left at its default (model decides), qwen3.5:4b derailed
+    # completely on a multi-part paper-analysis request — instead of
+    # analyzing QLoRA as asked, it issued an unrelated search_papers query
+    # ("reinforcement learning robotics", nothing in the prompt or
+    # conversation suggested it) and analyzed whatever that search
+    # returned. Reproduced 2/2 with reasoning left at default; with
+    # reasoning=False on the same prompt/model, tried twice on fresh
+    # threads, the derailment did not reproduce either time — the model
+    # stayed on-topic (QLoRA) both times. Real trade-off, not a free win:
+    # this disables extended thinking for every chat turn, not just this
+    # failure mode, so it may cost quality on prompts that benefit from
+    # it — and it does NOT fix every failure mode seen (a separate
+    # read_paper pagination loop still happened once with it set, tied to
+    # the skill not being consulted in that turn — see README "Known
+    # limitations"). This is a no-op for models without a reasoning mode.
+    #
+    # Caveat found testing the other direction: re-enabling reasoning=True
+    # (with the other fixes below already in place) did NOT reproduce the
+    # specific derailment above — it stayed on-topic too, this time with
+    # read_skill firing and 7 correctly-scoped search_paper_content calls.
+    # But it still ended in the same canned-deflection non-answer
+    # ("I see you've shared extensive content... how would you like me to
+    # help?") documented separately for `citation_graph` — so that
+    # deflection pattern is NOT something this setting controls one way or
+    # the other; it's a separate, still-open issue. `reasoning=False` is
+    # kept because it's the one setting verified against the derailment it
+    # was introduced for, not because it's been shown to fix everything.
     llm = ChatOllama(
         model=model_name,
         temperature=temperature,
         num_ctx = num_ctx,
-        profile = {"max_input_tokens": num_ctx}
+        profile = {"max_input_tokens": num_ctx},
+        reasoning=reasoning
     )
 
     # search_memory is built per session, bound to the embedding model
@@ -270,6 +320,15 @@ async def build_agent(
         # settings, not a separate one per RAG pipeline), so it's gated by
         # the same has_search_memory check rather than its own condition.
         agent_tools.append(make_search_paper_content_tool(embedding_provider, embedding_model))
+
+    # analyze_paper_figures needs a vision-capable model, which most local
+    # setups won't have — auto-detected in app.py (any Ollama model tagged
+    # "vision"), not a chat-settings toggle, the same way arXiv tool
+    # availability is auto-detected rather than switched on/off by hand.
+    # No fallback branch when it's missing: the tool simply isn't added,
+    # so the model never sees or tries to call it.
+    if vision_model:
+        agent_tools.append(make_analyze_paper_figures_tool(vision_model))
 
     agent_tools += arxiv_tools
 
@@ -290,6 +349,9 @@ async def build_agent(
     if arxiv_tools:
         prompt_parts.append(ARXIV_PROMPT)
 
+    if vision_model:
+        prompt_parts.append(FIGURE_ANALYSIS_PROMPT)
+
     full_system_prompt = "\n\n".join(prompt_parts)
 
     checkpointer = await get_checkpointer()
@@ -306,6 +368,7 @@ async def build_agent(
                 sources=SKILLS_SOURCES,
                 system_prompt=CUSTOM_SKILLS_SYSTEM_PROMPT
             ),
+            ForcePaperAnalysisSkillMiddleware(),
             ExcludeToolsMiddleware(excluded=HIDDEN_TOOLS),
             EnsureFinalAnswerMiddleware(max_retries=2),
             PaperMemoryMiddleware(),

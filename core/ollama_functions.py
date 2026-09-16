@@ -84,7 +84,13 @@ def get_ollama_models_info(force_refresh: bool = False) -> dict:
             "context_length": context_length,
             "capabilities": capabilities,
             "is_chat": "completion" in capabilities,
-            "is_embedding": "embedding" in capabilities
+            "is_embedding": "embedding" in capabilities,
+            # Same pattern as is_chat/is_embedding. Ollama's model library
+            # tags vision-capable models (e.g. llama3.2-vision) with
+            # "vision" — not verified against a live `ollama show` on a
+            # vision model in this environment (none installed), only
+            # against the library page's own tagging convention.
+            "is_vision": "vision" in capabilities
         }
 
     _models_cache["data"] = models

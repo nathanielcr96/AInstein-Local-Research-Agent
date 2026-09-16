@@ -17,3 +17,5 @@ arxiv
 pymupdf4llm
 langchain-text-splitters
 tiktoken
+streamlit
+keybert
