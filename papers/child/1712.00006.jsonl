@@ -1,0 +1,1 @@
+{"child_id": "1712.00006_p0_c0", "parent_id": "1712.00006_p0", "paper_id": "1712.00006", "index": 0, "text": "\\pdfoutput=1\n\\documentclass{article}\n\\usepackage[final]{pdfpages}\n\\begin{document}\n\\includepdf[pages=1-last]{paper.pdf}\n\\end{document}"}

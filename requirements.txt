@@ -19,3 +19,10 @@ langchain-text-splitters
 tiktoken
 streamlit
 keybert
+altair
+httpx
+langchain-core
+ollama
+pymupdf
+scikit-learn
+numpy

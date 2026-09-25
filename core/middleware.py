@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import re
+import sqlite3
 from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware.types import AgentMiddleware, ExtendedModelResponse, ModelResponse
@@ -15,6 +16,8 @@ from ollama import ResponseError as OllamaResponseError
 from prompts.ensure_final_answer_prompt import (
     NUDGE_MESSAGE,
     NUDGE_MESSAGE_TEMPLATE,
+    NUDGE_MESSAGE_CALL_TOOL,
+    NUDGE_MESSAGE_CALL_TOOL_TEMPLATE,
     FALLBACK_MESSAGE,
     FALLBACK_MODEL_UNAVAILABLE_MESSAGE,
 )
@@ -24,6 +27,13 @@ from memory.memory_tools import (
     _parse_kv_block,
     _format_kv_block,
     _find_paper_entry,
+)
+from memory.knowledge_graph import (
+    GRAPH_DB_PATH,
+    ensure_graph_schema,
+    ingest_paper_entry,
+    compute_keyword_similarity_edges,
+    connect_hub_keywords,
 )
 from core.tools import read_skill
 
@@ -242,6 +252,282 @@ class ForcePaperAnalysisSkillMiddleware(AgentMiddleware[Any, Any, Any]):
         return request.override(messages=new_messages)
 
 
+# Deliberately narrower than a bare "graph" trigger: the existing
+# `citation_graph` arXiv tool is also routinely discussed in English using
+# the word "graph" ("citation graph", "show me the graph of citations"),
+# so matching plain "graph" here would misfire and inject the wrong
+# skill. "grafo" (this user's own consistent Spanish wording for the
+# knowledge graph throughout this project) and the exact phrase "knowledge
+# graph" avoid that collision while still covering how it's actually asked
+# about in practice.
+_GRAPH_TRIGGER_RE = re.compile(r"\bgrafo\b|\bknowledge graph\b", re.IGNORECASE)
+
+class _ForceSkillMiddleware(AgentMiddleware[Any, Any, Any]):
+    """Deterministically injects a skill's full instructions right after
+    the user's message when it matches `trigger`, instead of relying on the
+    model to decide to call `read_skill` for it itself — same lesson, same
+    mechanism as `ForcePaperAnalysisSkillMiddleware` above.
+
+    Subclass per skill (set `skill_name`, `trigger`, `reason`) rather than
+    instantiating this directly with parameters: LangChain identifies a
+    middleware by its class name and refuses two instances of the same
+    class ("Please remove duplicate middleware instances").
+
+    Injected once per turn, not once per model call: the marker already
+    appearing after the triggering HumanMessage is what stops the skill
+    text from being re-inserted on every ReAct-loop call after the first.
+    """
+
+    skill_name: str
+    trigger: "re.Pattern[str]"
+    reason: str
+
+    # Max calls per tool, counted over the current turn (everything after the
+    # last HumanMessage), enforced in code only on turns whose message
+    # matches `trigger`. 0 means the tool is off-limits for that skill.
+    # Exists because a limit written in the skill's own text ("at most 3
+    # searches") was verified live to be ignored: qwen3.5:4b made ~11 calls
+    # on the first question, repeating one identical search four times and
+    # drifting into arXiv network tools the skill says not to use.
+    tool_limits: "dict[str, int]" = {}
+
+    @property
+    def _marker(self) -> str:
+        return f"[auto-loaded: {self.skill_name} skill]"
+
+    def wrap_model_call(
+        self,
+        request: "ModelRequest[Any]",
+        handler: "Callable[[ModelRequest[Any]], ModelResponse[Any]]",
+    ) -> "ModelResponse[Any]":
+        return handler(self._maybe_inject(request))
+
+    async def awrap_model_call(
+        self,
+        request: "ModelRequest[Any]",
+        handler: "Callable[[ModelRequest[Any]], Awaitable[ModelResponse[ResponseT]]]",
+    ) -> "ModelResponse[ResponseT] | AIMessage":
+        return await handler(self._maybe_inject(request))
+
+    def _maybe_inject(self, request: "ModelRequest[Any]") -> "ModelRequest[Any]":
+        messages = request.messages
+
+        last_human_idx = None
+        for i in range(len(messages) - 1, -1, -1):
+            if isinstance(messages[i], HumanMessage):
+                last_human_idx = i
+                break
+
+        if last_human_idx is None:
+            return request
+
+        human_text = _message_text(messages[last_human_idx].content)
+
+        if not self.trigger.search(human_text):
+            return request
+
+        already_injected = any(
+            isinstance(msg, SystemMessage) and self._marker in _message_text(msg.content)
+            for msg in messages[last_human_idx + 1 :]
+        )
+
+        if already_injected:
+            return request
+
+        skill_text = read_skill.func(skill_name=self.skill_name)
+
+        if skill_text.startswith("Error:"):
+            logger.warning("%s: %s", type(self).__name__, skill_text)
+            return request
+
+        injected = SystemMessage(
+            content=(
+                f"{self._marker} The user's message {self.reason}, so the "
+                f"{self.skill_name} skill's full instructions are loaded below "
+                "automatically — you do not need to (and should not) call "
+                "read_skill for it yourself. Follow these instructions for "
+                "this turn:\n\n" + skill_text
+            )
+        )
+
+        new_messages = list(messages)
+        new_messages.insert(last_human_idx + 1, injected)
+
+        return request.override(messages=new_messages)
+
+    def _tool_call_rejection(self, request: "ToolCallRequest") -> str | None:
+        """Why this tool call must not run, or None if it may.
+
+        Only active on turns where the skill's trigger matched the user's
+        message (the same condition that injects the skill). Blocked calls
+        still count as attempts when numbering later calls, so once a limit
+        is hit every further call to that tool stays blocked.
+        """
+        state = request.state
+        messages = state.get("messages", []) if isinstance(state, dict) else getattr(state, "messages", [])
+
+        last_human_idx = None
+        for i in range(len(messages) - 1, -1, -1):
+            if isinstance(messages[i], HumanMessage):
+                last_human_idx = i
+                break
+
+        if last_human_idx is None:
+            return None
+
+        if not self.trigger.search(_message_text(messages[last_human_idx].content)):
+            return None
+
+        turn = messages[last_human_idx + 1 :]
+        name = request.tool_call.get("name")
+        this_id = request.tool_call.get("id")
+
+        same_tool_calls = [
+            tc for m in turn if isinstance(m, AIMessage) for tc in m.tool_calls if tc.get("name") == name
+        ]
+        position = next((i for i, tc in enumerate(same_tool_calls) if tc.get("id") == this_id), len(same_tool_calls))
+
+        limit = self.tool_limits.get(name)
+
+        if limit is not None and position >= limit:
+            if limit == 0:
+                return (
+                    f"'{name}' is not available for this request ({self.skill_name} skill). "
+                    "Use only the tools that skill lists, and answer with what you already have."
+                )
+            return (
+                f"Tool call limit reached: '{name}' can be called at most {limit} time(s) for this "
+                f"request ({self.skill_name} skill). Do not call it again — write your answer from "
+                "the results you already have."
+            )
+
+        results = {m.tool_call_id: m for m in turn if isinstance(m, ToolMessage)}
+
+        for earlier in same_tool_calls[:position]:
+            previous = results.get(earlier.get("id"))
+            if earlier.get("args") == request.tool_call.get("args") and previous is not None and previous.status != "error":
+                return (
+                    f"You already made this exact '{name}' call in this request and it succeeded. "
+                    "Do not repeat it — use its result above."
+                )
+
+        return None
+
+    def wrap_tool_call(
+        self,
+        request: "ToolCallRequest",
+        handler: "Callable[[ToolCallRequest], ToolMessage | Any]",
+    ) -> "ToolMessage | Any":
+        rejection = self._tool_call_rejection(request)
+        if rejection:
+            logger.info("%s blocked %s: %s", type(self).__name__, request.tool_call.get("name"), rejection)
+            return ToolMessage(
+                content=rejection,
+                name=request.tool_call.get("name"),
+                tool_call_id=request.tool_call["id"],
+                status="error",
+            )
+        return handler(request)
+
+    async def awrap_tool_call(
+        self,
+        request: "ToolCallRequest",
+        handler: "Callable[[ToolCallRequest], Awaitable[ToolMessage | Any]]",
+    ) -> "ToolMessage | Any":
+        rejection = self._tool_call_rejection(request)
+        if rejection:
+            logger.info("%s blocked %s: %s", type(self).__name__, request.tool_call.get("name"), rejection)
+            return ToolMessage(
+                content=rejection,
+                name=request.tool_call.get("name"),
+                tool_call_id=request.tool_call["id"],
+                status="error",
+            )
+        return await handler(request)
+
+
+class ForceGraphSkillMiddleware(_ForceSkillMiddleware):
+    """Injects `knowledge-graph` when the message mentions "grafo"/"knowledge
+    graph".
+
+    Verified live: even with a hardened GRAPH_PROMPT (an explicit worked
+    example, an explicit "these are real tool calls, never write one out
+    as text" warning) baked into the system prompt on every turn,
+    qwen3.5:4b, llama3.2:3b, and cogito:8b all still failed to actually
+    call the graph tools — but that run was later found to be a
+    truncated-context artifact (num_ctx below the prompt size, see
+    MIN_RECOMMENDED_NUM_CTX in graph.py), so how much this injection adds
+    on its own is unproven: the same question also succeeded with the
+    injection disabled (one run each).
+    """
+
+    skill_name = "knowledge-graph"
+    trigger = _GRAPH_TRIGGER_RE
+    reason = "mentions the knowledge graph"
+
+
+# Spanish and English phrasings of "look for what argues against my
+# conclusion". Kept to explicit, unambiguous phrases (not a bare "against"
+# or "contra") so an ordinary sentence doesn't load a skill it doesn't need.
+_CHALLENGE_TRIGGER_RE = re.compile(
+    r"evidencia en contra|contra-?evidencia|counter-?evidence|evidence against"
+    r"|abogado del diablo|devil'?s advocate|poke holes|\brefut"
+    r"|challenge (my|this|the|our) (conclusion|hypothesis|claim|view)"
+    r"|cuestiona (mi|esta|la|nuestra) (conclusi|hip[oó]tesis|idea)"
+    r"|qu[eé] podr[ií]a estar mal|what could be wrong",
+    re.IGNORECASE,
+)
+
+
+# arXiv-network and full-text tools that the two evidence skills must not
+# reach for: their whole method is "retrieve passages from the papers
+# already downloaded", and these are the tools the model drifted into.
+_NO_ARXIV_LOOKUPS = {
+    name: 0
+    for name in (
+        "search_papers", "list_papers", "get_abstract", "download_paper", "read_paper",
+        "citation_graph", "export_citations", "watch_topic", "check_alerts", "list_watches",
+        "unwatch_topic", "get_paper_latex", "list_paper_latex_sections", "get_paper_latex_section",
+        "get_paper_outline", "read_paper_section", "search_paper_text",
+    )
+}
+
+
+class ForceChallengeSkillMiddleware(_ForceSkillMiddleware):
+    """Injects `challenge-conclusion` when the user asks for evidence against
+    a conclusion they're leaning toward.
+    """
+
+    skill_name = "challenge-conclusion"
+    trigger = _CHALLENGE_TRIGGER_RE
+    reason = "asks for evidence against a conclusion"
+    tool_limits = {**_NO_ARXIV_LOOKUPS, "search_paper_content": 3, "search_memory": 1}
+
+
+# "Do these two papers disagree / are they comparable". Requires either the
+# word "papers" (or an arXiv id) near a compare verb, or an explicit
+# agree/disagree/contradict phrase, so a bare "compare" (models, prices…)
+# doesn't load it.
+_COMPARE_TRIGGER_RE = re.compile(
+    r"se contradicen|se contradice\b|discrepan|discrepancia|\bdisagree|contradict"
+    r"|difieren|\bdo (these|the|both|they)\b[^.?!]{0,40}\b(agree|disagree|conflict)"
+    r"|compar\w*\b[^.?!]{0,40}\b(papers?|art[ií]culos|estudios)"
+    r"|compar\w*\b[^.?!]{0,80}\b\d{4}\.\d{4,5}",
+    re.IGNORECASE,
+)
+
+
+class ForceCompareSkillMiddleware(_ForceSkillMiddleware):
+    """Injects `compare-papers` when the user asks whether two papers agree,
+    contradict each other, or can be compared.
+    """
+
+    skill_name = "compare-papers"
+    trigger = _COMPARE_TRIGGER_RE
+    reason = "asks whether two papers agree or can be compared"
+    tool_limits = {**_NO_ARXIV_LOOKUPS, "search_paper_content": 4, "search_graph_nodes": 2}
+
+
 def _final_ai_message(response: Any) -> AIMessage | None:
     if isinstance(response, AIMessage):
         return response
@@ -271,8 +557,62 @@ _STALL_PHRASE_RE = re.compile(
     r"|next chunk"
     r"|before (providing|i provide|giving|i give|i can (provide|answer)|analysis)"
     r"|to get a complete (view|picture|understanding)"
+    # Spanish equivalents — this agent's replies aren't forced to English
+    # (verified live: qwen3.5:4b answers in whatever language the user
+    # wrote in), and the English-only patterns above silently missed a
+    # real "described, not executed" turn that happened to be in Spanish
+    # ("Voy a empezar buscando el paper...").
+    r"|voy a (empezar|continuar|seguir|buscar|revisar|comprobar|explorar)"
+    r"|primero (necesito|voy a|debo)"
+    r"|antes de (responder|dar|proporcionar|continuar)"
+    # More "narrated a call instead of making one" phrasings — verified
+    # live with llama3.2:3b (the EnsureFinalAnswerMiddleware fallback
+    # model) on the same graph-tools question: "Here's the tool call: "
+    # + a single-backtick call + "Please wait for the result..." — none
+    # of the phrases above matched this exact wording.
+    r"|here'?s the tool call"
+    r"|here is the tool call"
+    r"|wait for the result"
+    r"|i'?ll (call|invoke)"
+    r"|let'?s call"
     r")\b",
     re.IGNORECASE,
+)
+
+# A code span containing a bare `name(args)` call — not JSON — is just as
+# clear a sign the model described a tool call instead of issuing one.
+# Matches both a triple-backtick fence (verified live: qwen3.5:4b ended a
+# turn with a fence containing exactly `search_graph_nodes(query=
+# "Attention Is All You Need")`) and a single-backtick inline span
+# (verified live: llama3.2:3b did the same with `search_paper_text(...)`
+# in single backticks — the fence-only version of this regex missed it
+# entirely since there's no triple-backtick fence at all). Neither case
+# has a `{`, so the JSON-fence/brace checks below don't catch either one.
+#
+# Requires an underscore in the identifier: every real tool name in this
+# codebase is snake_case (search_graph_nodes, download_paper, ...), while
+# a genuine answer can legitimately contain single-word inline code like a
+# formula (`loss(x) = -log(p)`) — verified this exact string was a false
+# positive without the underscore requirement.
+_FUNCTION_CALL_FENCE_RE = re.compile(
+    r"```(?:\w+)?\s*\n?\s*[A-Za-z_][A-Za-z0-9]*_[A-Za-z0-9_]*\s*\([^`]*\)\s*```"
+    r"|`[A-Za-z_][A-Za-z0-9]*_[A-Za-z0-9_]*\s*\([^`\n]*\)`",
+    re.DOTALL,
+)
+
+# The same call, with no backticks at all — the whole message is just the
+# bare expression `tool_name(args)`. Verified live with qwen3.5:4b on the
+# knowledge-graph tools: a short, single-hop question produced exactly
+# `search_graph_nodes(query="Attention Is All You Need")` as the ENTIRE
+# message, no prose, no fence — evading every check above (no backticks,
+# no stall phrase, well under the 400-char prose fallback but that branch
+# only fires via _STALL_PHRASE_RE, which this text never matches either).
+# fullmatch on the whole stripped message, so a genuine answer that merely
+# mentions a snake_case-looking call somewhere in a longer sentence is
+# never affected — only a message that IS just the call, nothing else.
+_BARE_FUNCTION_CALL_RE = re.compile(
+    r"[A-Za-z_][A-Za-z0-9]*_[A-Za-z0-9_]*\s*\(.*\)\.?",
+    re.DOTALL,
 )
 
 
@@ -296,6 +636,12 @@ def _looks_like_textual_tool_call(content: str) -> bool:
     stripped = content.strip()
     if not stripped:
         return False
+
+    if _FUNCTION_CALL_FENCE_RE.search(stripped):
+        return True
+
+    if _BARE_FUNCTION_CALL_RE.fullmatch(stripped):
+        return True
 
     fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", stripped, re.DOTALL)
     if fence:
@@ -367,10 +713,21 @@ def _last_human_text(messages) -> str | None:
     return None
 
 
-def _build_nudge(original_question: str | None) -> str:
+def _build_nudge(original_question: str | None, has_tool_result: bool) -> str:
+    """Two different nudges for two different problems, both caught by
+    _needs_retry: `has_tool_result=True` means a tool already ran and the
+    model just needs to summarize/use that real data (telling it not to
+    call more tools prevents re-looping the same call); `False` means no
+    tool has actually run yet — the model only described one in text — so
+    the nudge must push it to make a REAL call, not forbid calling one.
+    """
+    if has_tool_result:
+        if not original_question:
+            return NUDGE_MESSAGE
+        return NUDGE_MESSAGE_TEMPLATE.format(question=original_question)
     if not original_question:
-        return NUDGE_MESSAGE
-    return NUDGE_MESSAGE_TEMPLATE.format(question=original_question)
+        return NUDGE_MESSAGE_CALL_TOOL
+    return NUDGE_MESSAGE_CALL_TOOL_TEMPLATE.format(question=original_question)
 
 
 _DEFLECTION_PHRASE_RE = re.compile(
@@ -442,15 +799,21 @@ def _replace_ai_content(response: Any, text: str) -> Any:
 # project was actually tested against (see README "Tested with").
 _FALLBACK_MODEL_NAME = "llama3.2:3b"
 
-_fallback_model_cache: dict = {"model": None}
+_fallback_model_cache: dict = {}
 
-def _get_fallback_model() -> ChatOllama:
-    if _fallback_model_cache["model"] is None:
+def _get_fallback_model(num_ctx: int | None = None) -> ChatOllama:
+    # num_ctx must match the selected model's: without it Ollama falls back
+    # to its 4096 default, and the agent's full prompt (system prompt +
+    # tool schemas, ~16k tokens) was verified in Ollama's server log to be
+    # truncated to 2050 tokens, keeping only the first 4 — the fallback
+    # then never saw the system prompt or any tool definition at all.
+    if num_ctx not in _fallback_model_cache:
         # temperature=0: this tier only runs when the selected model has
         # already failed to produce a final answer twice, so the goal is
         # a plain, reliable response, not variety.
-        _fallback_model_cache["model"] = ChatOllama(model=_FALLBACK_MODEL_NAME, temperature=0)
-    return _fallback_model_cache["model"]
+        kwargs = {"num_ctx": num_ctx} if num_ctx else {}
+        _fallback_model_cache[num_ctx] = ChatOllama(model=_FALLBACK_MODEL_NAME, temperature=0, **kwargs)
+    return _fallback_model_cache[num_ctx]
 
 
 _OLLAMA_GENERATION_RETRIES = 2
@@ -531,7 +894,7 @@ class EnsureFinalAnswerMiddleware(AgentMiddleware[Any, Any, Any]):
         handler: "Callable[[ModelRequest[Any]], ModelResponse[Any]]",
     ) -> "ModelResponse[Any]":
         current_request = request
-        nudge = _build_nudge(_last_human_text(request.messages))
+        nudge = _build_nudge(_last_human_text(request.messages), _has_tool_result(request.messages))
         response = _call_with_ollama_retry(handler, current_request)
         attempts = 0
 
@@ -546,7 +909,9 @@ class EnsureFinalAnswerMiddleware(AgentMiddleware[Any, Any, Any]):
             return response
 
         try:
-            fallback_request = current_request.override(model=_get_fallback_model())
+            fallback_request = current_request.override(
+                model=_get_fallback_model(getattr(request.model, "num_ctx", None))
+            )
             response = _call_with_ollama_retry(handler, fallback_request)
             attempts = 0
 
@@ -573,7 +938,7 @@ class EnsureFinalAnswerMiddleware(AgentMiddleware[Any, Any, Any]):
         handler: "Callable[[ModelRequest[Any]], Awaitable[ModelResponse[ResponseT]]]",
     ) -> "ModelResponse[ResponseT] | AIMessage":
         current_request = request
-        nudge = _build_nudge(_last_human_text(request.messages))
+        nudge = _build_nudge(_last_human_text(request.messages), _has_tool_result(request.messages))
         response = await _acall_with_ollama_retry(handler, current_request)
         attempts = 0
 
@@ -588,7 +953,9 @@ class EnsureFinalAnswerMiddleware(AgentMiddleware[Any, Any, Any]):
             return response
 
         try:
-            fallback_request = current_request.override(model=_get_fallback_model())
+            fallback_request = current_request.override(
+                model=_get_fallback_model(getattr(request.model, "num_ctx", None))
+            )
             response = await _acall_with_ollama_retry(handler, fallback_request)
             attempts = 0
 
@@ -703,14 +1070,62 @@ class PaperMemoryMiddleware(AgentMiddleware[Any, Any, Any]):
         existing = _find_paper_entry(paper_id)
 
         if existing is None:
-            content = _format_kv_block(new_fields)
+            final_fields = new_fields
+            content = _format_kv_block(final_fields)
             if content:
                 update_memory.func(content=content, category="paper")
-            return
+        else:
+            final_fields = _parse_kv_block(existing["content"])
+            final_fields.update({key: value for key, value in new_fields.items() if value})
+            edit_memory.func(entry_id=existing["id"], content=_format_kv_block(final_fields), category="paper")
 
-        merged = _parse_kv_block(existing["content"])
-        merged.update({key: value for key, value in new_fields.items() if value})
-        edit_memory.func(entry_id=existing["id"], content=_format_kv_block(merged), category="paper")
+        self._update_knowledge_graph(final_fields)
+
+    def _update_knowledge_graph(self, fields: dict) -> None:
+        """Adds/updates this one paper's nodes and edges in graph.sqlite the
+        moment it's saved to long-term memory — the same deterministic,
+        no-model-decision-needed philosophy as the rest of this class.
+
+        Runs `ingest_paper_entry`, `compute_keyword_similarity_edges`, and
+        `connect_hub_keywords` synchronously, right here, every time.
+        Measured live against the real graph (1,154 keyword nodes): the
+        pairwise similarity pass takes ~4.2s (vectorized cosine similarity
+        via sentence-transformers/torch, not a Python loop) and the hub
+        pass is effectively instant — negligible next to a model turn that
+        already takes 10-60s. The `python -m memory.knowledge_graph`
+        script's 1-2 minute runtime was never about this step; it comes
+        from re-running KeyBERT extraction over every paper in the corpus,
+        and `ingest_paper_entry` already only extracts keywords for this
+        one paper.
+
+        This is O(n^2) in the number of keyword nodes (every keyword
+        compared against every other), so it will need revisiting — e.g.
+        comparing only this paper's new keywords against existing ones,
+        instead of all-against-all — if the corpus grows an order of
+        magnitude past where it is now; not a concern at the current size.
+
+        Failure here must never affect the memory write above, which is
+        the already-verified, primary behavior — caught and logged on its
+        own rather than left to propagate into `_maybe_record_paper`'s
+        wrapping try/except, whose log message is worded for the memory
+        write, not this.
+        """
+
+        try:
+            GRAPH_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+            conn = sqlite3.connect(str(GRAPH_DB_PATH), timeout=30)
+            try:
+                ensure_graph_schema(conn)
+                ingest_paper_entry(conn, fields)
+                compute_keyword_similarity_edges(conn)
+                connect_hub_keywords(conn)
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception:
+            logger.exception(
+                "Failed to update knowledge graph for paper %s", fields.get("arXiv ID")
+            )
 
 
 _ARXIV_TOOL_NAMES = {

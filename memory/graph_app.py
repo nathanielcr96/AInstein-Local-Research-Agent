@@ -108,7 +108,13 @@ html = f"""
     return n;
   }}
 
-  const Graph = ForceGraph3D()(document.getElementById('graph3d'))
+  window._debugGraph = null;
+  // preserveDrawingBuffer: without it, the WebGL context clears its drawing
+  // buffer right after each render, so canvas.toDataURL()/drawImage() called
+  // from outside the render loop (e.g. to record a demo GIF) captures a
+  // blank black frame almost every time — verified live, needed to record
+  // a screen-capture GIF of this page.
+  const Graph = ForceGraph3D({{ rendererConfig: {{ preserveDrawingBuffer: true }} }})(document.getElementById('graph3d'))
     .graphData(rawData)
     .backgroundColor("#0b0e14")
     .showNavInfo(false)
@@ -121,6 +127,9 @@ html = f"""
     .linkWidth(l => Math.max(0.4, (l.weight || 1) * 1.1))
     .linkDirectionalParticles(l => l.relation === "cites" ? 2 : 0)
     .linkDirectionalParticleWidth(1.4)
+    ;
+  window._debugGraph = Graph;
+  Graph
     .onNodeClick(node => {{
       const distance = 90;
       const distRatio = 1 + distance / Math.hypot(node.x || 1, node.y || 1, node.z || 1);
@@ -132,6 +141,44 @@ html = f"""
       infoBox.style.display = 'block';
       infoBox.innerHTML = `<b>${{node.name}}</b><br>type: ${{node.type}}<br>connections: ${{degreeOf(node.id, rawData.links)}}`;
     }});
+
+  // The library's own zoomToFit() was tried here first and, with a few
+  // hundred nodes, ended up parking the camera at ~17x the graph's actual
+  // radius (a real bug hit live: node coordinates spanned roughly ±85 on
+  // each axis, but zoomToFit(400, 60) positioned the camera at z=1474,
+  // rendering the whole graph as a near-invisible speck in one corner).
+  // Computing the distance directly from the actual node positions
+  // instead is simple and gives a predictable, correct result regardless
+  // of graph size.
+  function fitCameraToNodes() {{
+    const nodes = Graph.graphData().nodes;
+    let maxDist = 50;
+    for (const n of nodes) {{
+      const d = Math.hypot(n.x || 0, n.y || 0, n.z || 0);
+      if (d > maxDist) maxDist = d;
+    }}
+    const camDist = maxDist * 2.2;
+    // The 3-arg form (pos, lookAt, transitionMs) silently failed to apply
+    // at all in testing — cameraPosition() kept reporting the untouched
+    // default afterward. The plain 1-arg instant-set form verified live
+    // to actually work; no animated transition, but a reliable snap beats
+    // a call that quietly does nothing.
+    Graph.cameraPosition({{ x: 0, y: 0, z: camDist }});
+  }}
+  // A few hundred nodes keep drifting apart for several seconds — a graph
+  // spanning roughly ±85 on each axis at t=1.5s had spread to ±275 by
+  // t=6s in testing, so fitting the camera once (even a few seconds in)
+  // still goes stale almost immediately as the layout keeps expanding.
+  // Re-fitting on an interval while the simulation is still active tracks
+  // that expansion instead of freezing on a snapshot of it; each call
+  // re-measures current node positions, so it stays correct once the
+  // layout actually settles down instead of overshooting further.
+  let refitCount = 0;
+  const refitInterval = setInterval(() => {{
+    fitCameraToNodes();
+    refitCount++;
+    if (refitCount >= 12) clearInterval(refitInterval);  // ~12s of tracking, then leave the camera alone
+  }}, 1000);
 
   document.querySelectorAll('.type-toggle').forEach(cb => {{
     cb.addEventListener('change', () => {{

@@ -6,6 +6,7 @@ from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
 from langchain.tools import tool
 
+from memory.embedding_cache import get_embeddings_for_documents
 from memory.memory_rag import _get_embeddings, _get_reranker, _rerank, RERANK_FETCH_K
 from memory.memory_tools import _find_paper_entry, _parse_kv_block
 
@@ -69,7 +70,23 @@ def _load_index(provider: str, model: str) -> FAISS | None:
 
     embeddings = _get_embeddings(provider, model)
 
-    store = FAISS.from_documents(documents, embeddings)
+    # The actual embedding vectors are read from (and, for any new chunk,
+    # written to) memory/store/embeddings.sqlite — see embedding_cache.py
+    # for why: embedding all ~14,600 child chunks in one request on every
+    # cold start was verified live to fail partway through. This call only
+    # calls Ollama for chunks that aren't cached yet (a newly downloaded
+    # paper); everything else comes back from SQLite in well under a
+    # second. FAISS.from_embeddings builds the same in-memory search index
+    # as FAISS.from_documents did, just skipping the embedding step for
+    # chunks already on disk.
+    vectors_by_child_id = get_embeddings_for_documents(documents, provider, model, embeddings)
+
+    text_embeddings = [
+        (doc.page_content, vectors_by_child_id[doc.metadata["child_id"]]) for doc in documents
+    ]
+    metadatas = [doc.metadata for doc in documents]
+
+    store = FAISS.from_embeddings(text_embeddings, embeddings, metadatas=metadatas)
 
     _index_cache.update(signature=signature, provider=provider, model=model, store=store)
 

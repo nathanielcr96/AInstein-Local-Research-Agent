@@ -17,14 +17,23 @@ from chainlit.types import ThreadDict
 # not just our own.
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
-from graph import build_agent
+from graph import build_agent, MIN_RECOMMENDED_NUM_CTX, MEASURED_PROMPT_TOKENS
 from core.ollama_functions import get_ollama_models_info, extract_llm_metrics
 from core.huggingface_functions import get_huggingface_models_info
 from core.chainlit_data import build_data_layer, authenticate_local_user
+from core.companion_apps import launch_companion_apps
 from observability.metrics_store import log_turn
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+# Starts the observability dashboard / knowledge graph Streamlit apps in
+# the background so the header buttons (.chainlit/config.toml) work
+# immediately, without the user having to open two more terminals
+# themselves. Runs once per process start (module-level, not inside a
+# request/session handler) and is a no-op if they're already running —
+# see core/companion_apps.py for why that matters under --watch reloads.
+launch_companion_apps()
 
 # Enables the thread-history sidebar and chat resume. See
 # core/chainlit_data.py for why header_auth_callback is used to satisfy
@@ -310,6 +319,35 @@ async def main(message: cl.Message):
         )
 
         num_ctx = models_info[settings["model"]]["context_length"]
+
+        # Warned once per model per session, not on every message: the
+        # message is informational, and repeating it each turn would bury
+        # the actual conversation. Sent, not just logged — the user is the
+        # one who can act on it (pick a model with a larger context).
+        warned_models = cl.user_session.get("ctx_warned_models") or set()
+
+        if num_ctx < MIN_RECOMMENDED_NUM_CTX and settings["model"] not in warned_models:
+            warned_models.add(settings["model"])
+            cl.user_session.set("ctx_warned_models", warned_models)
+            logger.warning(
+                "Model '%s' has num_ctx=%s, below the recommended minimum of %s",
+                settings["model"], num_ctx, MIN_RECOMMENDED_NUM_CTX,
+            )
+            await cl.Message(
+                author = "MV DATAWORKS",
+                content = (
+                    f"⚠️ **Context window too small.** '{settings['model']}' has a context "
+                    f"length of {num_ctx:,} tokens. AInstein's system prompt, skills and tool "
+                    f"definitions take roughly {MEASURED_PROMPT_TOKENS:,} tokens on their own, "
+                    "and tool results (a paper search returns several thousand more) need room "
+                    "on top of that. When the prompt doesn't fit, Ollama silently truncates it: "
+                    "the model loses its tools and instructions, and answers will be wrong, "
+                    "incomplete or invented. "
+                    f"Please pick a model with a context length of at least "
+                    f"{MIN_RECOMMENDED_NUM_CTX:,} tokens. With less than that, answers are not "
+                    "supported and we can't take responsibility for poor results."
+                )
+            ).send()
 
         # Not yet a chat-settings toggle — see graph.py's build_agent for
         # why this defaults to False. Resolved as its own variable (rather

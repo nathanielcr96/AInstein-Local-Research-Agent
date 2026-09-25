@@ -1,0 +1,1 @@
+{"child_id": "1707.06347_p0_c0", "parent_id": "1707.06347_p0", "paper_id": "1707.06347", "index": 0, "text": "\\documentclass[a4paper]{article}\n\\pdfoutput=1\n\\usepackage{hyperref}\n\\hypersetup{\n  pdfinfo={\n    Title={},\n    Author={}\n  }\n}\n\\usepackage{pdfpages}\n\n\\begin{document}\n\\includepdf[pages=1-last]{ppo-min.pdf}\n\\end{document}"}

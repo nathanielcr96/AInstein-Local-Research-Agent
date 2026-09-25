@@ -45,6 +45,36 @@ NUDGE_MESSAGE = (
     "do not ask the user what they want; they already told you."
 )
 
+# Used instead of NUDGE_MESSAGE_TEMPLATE when _looks_like_textual_tool_call
+# fires with NO tool result yet in the conversation (_has_tool_result is
+# False) — i.e. the model described a tool call as text/code instead of
+# ever actually calling one, so there's no data above to answer from yet.
+# Verified live (graph_tools first-turn test): reusing NUDGE_MESSAGE_TEMPLATE
+# here actively backfires — it tells the model "the tool results already
+# above are real data... do not call any tool", which is false when nothing
+# was ever called, and qwen3.5:4b then can't produce a real answer either
+# (nothing to answer from) nor call the tool it needs (told not to),
+# exhausting every retry and the fallback tier for nothing.
+NUDGE_MESSAGE_CALL_TOOL_TEMPLATE = (
+    "You did not actually answer or call a tool this turn — you wrote out "
+    "what looks like a tool call as plain text (e.g. inside a code block "
+    "or as pseudo-code) instead of issuing a real one, so nothing was "
+    "executed and there is no data yet to answer from. Here is the exact "
+    "question you still need to answer:\n\n"
+    "\"{question}\"\n\n"
+    "Make an actual tool call now — a real function call the system will "
+    "execute — not text, code, or JSON describing one. Use the tool-calling "
+    "mechanism itself, then wait for its real result before answering."
+)
+
+NUDGE_MESSAGE_CALL_TOOL = (
+    "You did not actually answer or call a tool this turn — you wrote out "
+    "what looks like a tool call as plain text instead of issuing a real "
+    "one, so nothing was executed. Scroll back up for the user's most "
+    "recent question, then make an actual tool call now — a real function "
+    "call the system will execute, not text, code, or JSON describing one."
+)
+
 FALLBACK_MESSAGE = (
     "I wasn't able to generate a final answer after several attempts, "
     "even with the backup model. Please rephrase your question or try "

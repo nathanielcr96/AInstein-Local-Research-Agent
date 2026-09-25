@@ -12,6 +12,7 @@ from deepagents.middleware.skills import SkillsMiddleware
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
+from langchain.agents.middleware import ToolCallLimitMiddleware
 from langchain_ollama import ChatOllama
 
 from core.tools import read_skill
@@ -20,11 +21,13 @@ from core.figure_analysis import make_analyze_paper_figures_tool
 from memory.memory_tools import MEMORY_FILE, _list_memory_entries, update_memory, edit_memory
 from memory.memory_rag import make_search_memory_tool
 from memory.paper_rag import make_search_paper_content_tool
-from core.middleware import ExcludeToolsMiddleware, EnsureFinalAnswerMiddleware, PaperMemoryMiddleware, ArxivTimeoutMiddleware, ForcePaperAnalysisSkillMiddleware
+from memory.graph_tools import GRAPH_TOOLS
+from core.middleware import ExcludeToolsMiddleware, EnsureFinalAnswerMiddleware, PaperMemoryMiddleware, ArxivTimeoutMiddleware, ForcePaperAnalysisSkillMiddleware, ForceGraphSkillMiddleware, ForceChallengeSkillMiddleware, ForceCompareSkillMiddleware
 from prompts.research_agent_prompt import SYSTEM_PROMPT
 from prompts.skills_prompt import CUSTOM_SKILLS_SYSTEM_PROMPT
 from prompts.memory_prompt import MEMORY_PROMPT_TEMPLATE, MEMORY_SEARCH_PROMPT
 from prompts.arxiv_prompt import ARXIV_PROMPT, FIGURE_ANALYSIS_PROMPT
+from prompts.graph_prompt import GRAPH_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +40,7 @@ PROJECT_DIR = Path(__file__).parent.resolve()
 
 backend = FilesystemBackend(root_dir=PROJECT_DIR,
                             virtual_mode = True)
-tools = [read_skill, update_memory, edit_memory]
+tools = [read_skill, update_memory, edit_memory] + GRAPH_TOOLS
 
 # LangGraph checkpointer: persists the full conversation state (messages,
 # tool calls, results) in a local .sqlite, indexed by thread_id. Replaces
@@ -195,6 +198,26 @@ def _build_memory_index_section() -> str:
 # memory edits.
 _AGENT_CACHE_MAX_SIZE = 8
 
+# Measured, not estimated: the full agent's real first-call prompt (system
+# prompt + memory index + skills + ~23 tool schemas + an injected skill) was
+# ~18,700 tokens in Ollama's server log, and 19,074 after the
+# challenge-conclusion and compare-papers skills were added (it then grows a
+# few hundred tokens per tool result). With num_ctx below the prompt size,
+# Ollama silently truncates the prompt to half the context keeping only its
+# first 4 tokens — the model loses the system prompt AND every tool
+# definition and starts saying it has no tools, narrating calls as text, or
+# inventing results. Grows as tools/skills/memory grow: re-measure if it's
+# changed.
+MEASURED_PROMPT_TOKENS = 19_100
+
+# What the app recommends: the prompt plus room for tool results, which are
+# big (one search_paper_content call returns up to 5 parent chunks, several
+# thousand tokens). A bare "prompt fits" threshold would still overflow on
+# the first search.
+MIN_RECOMMENDED_NUM_CTX = 24_000
+
+MAX_TOOL_CALLS_PER_MESSAGE = 30
+
 _agent_cache: "OrderedDict[tuple, Any]" = OrderedDict()
 
 async def build_agent(
@@ -344,7 +367,7 @@ async def build_agent(
     if has_search_memory:
         memory_section = f"{memory_section}\n\n{MEMORY_SEARCH_PROMPT}"
 
-    prompt_parts = [SYSTEM_PROMPT, memory_section]
+    prompt_parts = [SYSTEM_PROMPT, memory_section, GRAPH_PROMPT]
 
     if arxiv_tools:
         prompt_parts.append(ARXIV_PROMPT)
@@ -369,6 +392,17 @@ async def build_agent(
                 system_prompt=CUSTOM_SKILLS_SYSTEM_PROMPT
             ),
             ForcePaperAnalysisSkillMiddleware(),
+            ForceGraphSkillMiddleware(),
+            ForceChallengeSkillMiddleware(),
+            ForceCompareSkillMiddleware(),
+            # Safety net over every tool call in one user message, on top of
+            # the per-skill limits above. "continue" blocks the excess calls
+            # with an error message and lets the model answer; the count is
+            # per invocation (LangChain keeps it untracked, so it resets with
+            # each user message). Sized against recursion_limit=50 in app.py
+            # (~10 tool rounds): high enough not to cut legitimate long
+            # analyses, low enough to end a loop.
+            ToolCallLimitMiddleware(run_limit=MAX_TOOL_CALLS_PER_MESSAGE, exit_behavior="continue"),
             ExcludeToolsMiddleware(excluded=HIDDEN_TOOLS),
             EnsureFinalAnswerMiddleware(max_retries=2),
             PaperMemoryMiddleware(),
