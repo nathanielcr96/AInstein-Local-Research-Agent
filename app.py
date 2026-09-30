@@ -22,6 +22,9 @@ from core.ollama_functions import get_ollama_models_info, extract_llm_metrics
 from core.huggingface_functions import get_huggingface_models_info
 from core.chainlit_data import build_data_layer, authenticate_local_user
 from core.companion_apps import launch_companion_apps
+from core.image_guard import MarkdownImageStreamFilter, strip_markdown_images
+from core.injection_detector import detect_injection, format_notice
+from core.middleware import _UNTRUSTED_CONTENT_TOOLS, _UNTRUSTED_LABEL_TOOLS
 from observability.metrics_store import log_turn
 import pandas as pd
 
@@ -255,6 +258,11 @@ async def main(message: cl.Message):
     steps = {}
     open_steps = {}
     tool_metrics = {}
+    # One per user message (it holds partial state between tokens) — see core/image_guard.py.
+    image_filter = MarkdownImageStreamFilter()
+    # (label, start of the matched text) already reported to the user during this turn, so reading
+    # several chunks of the same paper doesn't repeat the same notice.
+    warned_injections: set[tuple[str, str]] = set()
     conversation_metrics = {
         "llm_calls": 0,
         "tool_calls": 0,
@@ -410,7 +418,10 @@ async def main(message: cl.Message):
 
                 input_raw = event["data"].get("input", {})
 
-                step.input = f"- Input:\n\n{input_raw}\n\n"
+                # Display copy only — the model got the real arguments. Step panels render
+                # markdown when expanded, so an image in here loads on a click on "Usado"
+                # (verified live); see core/image_guard.py.
+                step.input = strip_markdown_images(f"- Input:\n\n{input_raw}\n\n")
 
                 steps[run_id] = step
                 open_steps[run_id] = step
@@ -439,11 +450,38 @@ async def main(message: cl.Message):
 
                 step = steps.get(run_id)
 
+                # Tell the person when external text looks like an order to the AI. The other
+                # defenses neutralize it silently; this is the only place a human finds out.
+                # A heuristic (see core/injection_detector.py) — it can fire on papers ABOUT
+                # prompt injection, and the notice says so. Only for tools whose result is
+                # third-party text, and only what wasn't already reported earlier this turn.
+                if tool_name in _UNTRUSTED_CONTENT_TOOLS or tool_name in _UNTRUSTED_LABEL_TOOLS:
+                    try:
+                        fresh = [
+                            d for d in detect_injection(_format_tool_output(output))
+                            if (d.label, d.snippet[:60]) not in warned_injections
+                        ]
+                        if fresh:
+                            warned_injections.update((d.label, d.snippet[:60]) for d in fresh)
+                            logger.warning(
+                                "Possible prompt injection in the result of %s: %s",
+                                tool_name, sorted({d.label for d in fresh}),
+                            )
+                            await cl.Message(content=format_notice(tool_name, fresh), author="Aviso de seguridad").send()
+                    except Exception:
+                        logger.exception("Injection notice failed (does not affect the answer)")
+
                 if step:
 
                     output_raw = _format_tool_output(output)
 
-                    step.output = f"- Output:\n\n{output_raw}\n\n- Duration:\n\n{duration:.3f}s"
+                    # Display copy only, same reason as step.input above: tool results
+                    # (paper text, search results) are untrusted, and the model still
+                    # receives the real wrapped result — only what the browser renders
+                    # is sanitized.
+                    step.output = strip_markdown_images(
+                        f"- Output:\n\n{output_raw}\n\n- Duration:\n\n{duration:.3f}s"
+                    )
 
                     await step.__aexit__(None, None, None)
                     open_steps.pop(run_id, None)
@@ -475,14 +513,30 @@ async def main(message: cl.Message):
 
                 conversation_metrics["llm_time"] += metrics["duration"]
 
+                # A model call ended: an image left open at the end of the stream is
+                # replaced by the placeholder rather than released — the next model call
+                # streams into the same message, and its first characters could otherwise
+                # complete it on the client.
+                tail = image_filter.flush()
+                if tail:
+                    await msg.stream_token(tail)
+
             elif event_type == "on_chat_model_stream":
 
                 chunk = event["data"]["chunk"]
 
                 if hasattr(chunk, "content") and chunk.content:
 
-                    await _clear_loading_message()
-                    await msg.stream_token(chunk.content)
+                    # Tokens go to the browser as they are generated, INSIDE the model
+                    # call — before OutputImageGuardrailMiddleware ever sees the finished
+                    # message — and the client concatenates them, so an image is live the
+                    # moment its closing ")" is emitted. Verified live: the middleware
+                    # alone did not stop it. See core/image_guard.py.
+                    safe = image_filter.feed(chunk.content)
+
+                    if safe:
+                        await _clear_loading_message()
+                        await msg.stream_token(safe)
 
     except asyncio.CancelledError:
 
@@ -512,6 +566,11 @@ async def main(message: cl.Message):
         msg.content = f"{msg.content}{separator}⚠️ {_friendly_error_message(exc)}"
         await msg.update()
         return
+
+    # End of the turn: release a held trailing "!" (see MarkdownImageStreamFilter.finish).
+    tail = image_filter.finish()
+    if tail:
+        await msg.stream_token(tail)
 
     conversation_metrics["execution_time"] = (
         time.time() - conversation_start

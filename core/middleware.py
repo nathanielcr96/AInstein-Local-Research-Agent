@@ -36,6 +36,8 @@ from memory.knowledge_graph import (
     connect_hub_keywords,
 )
 from core.tools import read_skill
+from core.arxiv_download import _CONTENT_WARNING, _CONTENT_WARNING_FOOTER
+from memory.graph_tools import _GRAPH_LABEL_WARNING, _GRAPH_LABEL_WARNING_FOOTER
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -866,6 +868,82 @@ async def _acall_with_ollama_retry(handler, request):
             )
 
 
+# --- Output guardrail: neutralize auto-loading markdown images ------------------------
+# SECURITY_IMPLEMENTATION_PLAN.md step 4.2, closing SECURITY_REVIEW.md finding #6
+# (confirmed live in step 4.1, not just theorized): a markdown image `![alt](url)` in the
+# model's own reply auto-loads the instant Chainlit renders it — no click needed — and
+# `.chainlit/config.toml`'s `unsafe_allow_html = false` does NOT stop this, since it only
+# blocks raw HTML/`<script>`, not standard markdown image syntax. Verified with a real
+# local logging server: a crafted reply produced two real outbound GET requests, query
+# string intact, confirmed both in the browser's own network panel and in the page's
+# accessibility tree (a genuine <img> element, not text).
+#
+# The regex, the placeholder and the stripping live in core/image_guard.py (shared with
+# app.py). IMPORTANT — this middleware alone is NOT enough for the real app, which was only
+# discovered after step 4.2 had been marked done: it sanitizes the FINISHED AIMessage, but
+# app.py streams each token to the browser as the model generates it (inside the model call,
+# before this runs), and the image renders the instant its closing ")" arrives. The
+# streamed path is covered by MarkdownImageStreamFilter in app.py; this stays as a
+# defense-in-depth layer for everything that reads the agent's messages (checkpoints,
+# history, any future non-streaming client).
+from core.image_guard import (  # noqa: E402
+    BLOCKED_IMAGE_PLACEHOLDER as _BLOCKED_IMAGE_PLACEHOLDER,
+    MARKDOWN_IMAGE_RE as _MARKDOWN_IMAGE_RE,
+    strip_markdown_images as _strip_markdown_images,
+)
+
+
+class OutputImageGuardrailMiddleware(AgentMiddleware[Any, Any, Any]):
+    """Neutralizes markdown image syntax in the model's own output before it can ever
+    reach the browser.
+
+    Deliberately unconditional — every markdown image gets stripped, not just ones
+    pointing at some "untrusted domain" list. This agent's answers are text; they never
+    legitimately need to embed a live-loading image. Trying to maintain an allowlist of
+    "safe" domains would be weaker than simply never letting this syntax render at all —
+    a model echoing attacker-controlled text (from a hostile paper, from anywhere) can put
+    any string it likes in a URL, including one crafted to merely look trustworthy.
+
+    Placed FIRST in graph.py's middleware list — deliberately outermost. LangChain
+    composes wrap_model_call middleware with the first-listed one outermost (same rule
+    verified for wrap_tool_call in UntrustedContentMiddleware's own comment — see
+    langchain.agents.factory._chain_model_call_handlers), meaning it's the LAST thing to
+    touch the response on the way out. That matters here: this has to run after
+    EnsureFinalAnswerMiddleware's own retries/fallback have already settled on the actual
+    final answer, not sanitize a draft that then gets discarded and replaced anyway.
+    """
+
+    def wrap_model_call(
+        self,
+        request: "ModelRequest[Any]",
+        handler: "Callable[[ModelRequest[Any]], ModelResponse[Any]]",
+    ) -> "ModelResponse[Any]":
+        return self._maybe_sanitize(handler(request))
+
+    async def awrap_model_call(
+        self,
+        request: "ModelRequest[Any]",
+        handler: "Callable[[ModelRequest[Any]], Awaitable[ModelResponse[ResponseT]]]",
+    ) -> "ModelResponse[ResponseT] | AIMessage":
+        return self._maybe_sanitize(await handler(request))
+
+    def _maybe_sanitize(self, response: Any) -> Any:
+        message = _final_ai_message(response)
+        if message is None:
+            return response
+
+        original = _message_text(message.content)
+        if not original or "![" not in original:
+            return response  # fast path — skip the regex entirely for the common case
+
+        sanitized = _strip_markdown_images(original)
+        if sanitized == original:
+            return response
+
+        logger.warning("OutputImageGuardrailMiddleware: blocked a markdown image in the model's own output")
+        return _replace_ai_content(response, sanitized)
+
+
 class EnsureFinalAnswerMiddleware(AgentMiddleware[Any, Any, Any]):
     """Guarantees the turn never ends on an empty, non-tool-call response.
 
@@ -990,6 +1068,150 @@ def _tool_message_text(result: Any) -> str | None:
     return str(content) if content is not None else None
 
 
+# --- Untrusted-content wrapping (SECURITY_IMPLEMENTATION_PLAN.md, step 1.3) -------------
+
+# Tool names whose result gets wrapped with the same untrusted-content framing
+# `download_paper` used to apply only to its own output, manually, inside
+# core/arxiv_download.py's _success_payload (_CONTENT_WARNING header +
+# _CONTENT_WARNING_FOOTER). SECURITY_REVIEW.md found that warning applied to only 1 of 8+
+# tools that return a paper's actual text — the rest of the arxiv-mcp-server tool set
+# (search_papers, get_abstract, read_paper, list_papers, citation_graph) had none at all.
+#
+# download_paper is included here too, not just the 5 new ones: _success_payload's own
+# manual wrapping was removed (core/arxiv_download.py) once this middleware could reproduce
+# it, so this set is now the ONLY source of this warning for all six — no tool wraps its own
+# output anymore, which is the point (a seventh tool added later only needs its name added
+# here, not its own copy of this logic).
+#
+# watch_topic/check_alerts (also arxiv-mcp-server) are deliberately NOT here yet: they
+# return topic-monitoring metadata (new-paper alerts), not a paper's own prose, so whether
+# they need the same framing is a separate question for a later pass, not assumed here.
+#
+# The first six return a JSON payload (status/message/paper_id/... plus one field with the
+# actual text), not plain prose directly — wrapping the whole raw string, as `_maybe_wrap`
+# below does, means the header lands before the opening `{` and the footer after the
+# closing `}`, not hugging just the text field. Structurally this is fine for the actual
+# goal (the footer is now the literal last thing before the model resumes generating, for
+# every one of these tools uniformly) and it keeps this middleware simple and tool-agnostic
+# — the tradeoff is that the JSON the model sees is no longer strictly parseable JSON on its
+# own. Verified live against qwen3.5:4b for both download_paper and get_abstract (step 1.2):
+# it reads past the non-strict-JSON framing fine, doesn't quote the wrapper back, doesn't
+# comment on it, extracts the real content correctly.
+#
+# search_paper_content (memory/paper_rag.py) is different in shape — added in step 1.3, the
+# most-used research tool per prompts/arxiv_prompt.py and the only one of these seven a
+# small model is explicitly told to reach for by default. It returns PLAIN TEXT already (up
+# to 5 parent chunks, each prefixed with a "Title/Authors/arXiv id" header, joined by
+# "\n\n---\n\n"), never JSON — so it doesn't have the non-strict-JSON tradeoff above at all,
+# wrapping the whole string is exactly as clean as wrapping a single passage would be. It's
+# wrapped ONCE around the whole multi-passage result (header once, footer once), not
+# per-passage: matches how a long download_paper/read_paper result is already wrapped as one
+# block regardless of how many internal sections it has, and keeps the per-call context cost
+# fixed instead of multiplying with `k` (up to 20). If a future live test finds the header
+# isn't "sticky" across 5 unrelated passages the way the footer already is by sitting right
+# at the end, per-passage repetition is the next thing to try — not assumed necessary here.
+#
+# analyze_paper_figures (core/figure_analysis.py) added in step 4.4, same JSON shape as the
+# original six (status/paper_id/... plus a "figures" list of {page, index, description}).
+# SECURITY_REVIEW.md finding #7: a PDF page can contain what looks like a figure but is
+# actually text rendered as an image (invisible to every text-based tool, since it was never
+# text) — the local vision model reads it and transcribes/describes it, and that description
+# is exactly the kind of untrusted external content the other six tools already carry the
+# same wrapper for. The plan's own step 4.4 originally scoped this as prompt-text-only (a
+# paragraph in FIGURE_ANALYSIS_PROMPT, prompts/arxiv_prompt.py) — added here instead/also,
+# once it was clear a prompt-only note repeats exactly the mistake finding #1 already
+# documented (a warning that isn't backed by code is the thing this whole middleware exists
+# to stop relying on). No vision-capable model is installed in this dev environment, so this
+# couldn't be verified live end-to-end the way download_paper/get_abstract were in step 1.2
+# — only structurally, against a synthetic result matching this tool's real JSON shape.
+_UNTRUSTED_CONTENT_TOOLS: frozenset[str] = frozenset({
+    "download_paper",
+    "search_papers",
+    "get_abstract",
+    "read_paper",
+    "list_papers",
+    "citation_graph",
+    "analyze_paper_figures",
+    "search_paper_content",
+})
+
+# Step 1.4: the four graph tools (memory/graph_tools.py) — search_graph_nodes,
+# get_node_neighbors, list_nodes_by_type, find_similar_keywords. Kept as a SEPARATE set
+# from _UNTRUSTED_CONTENT_TOOLS, with its own short header/footer
+# (_GRAPH_LABEL_WARNING/_GRAPH_LABEL_WARNING_FOOTER, defined in memory/graph_tools.py),
+# rather than folded into the same set with the long _CONTENT_WARNING: these tools return a
+# handful of node labels or an id/weight list, not paper prose, and the long warning's
+# LaTeX-markup/"don't complete this document" caveats don't apply to that shape of content
+# at all — a one-line "these labels came from external text" note carries the same "treat as
+# data, not instructions" framing without burying a short result under a paragraph written
+# for a very different one. See SECURITY_REVIEW.md finding #4: a node label is permanent
+# once ingested (memory/knowledge_graph.py extracts it from a paper's own title/abstract via
+# KeyBERT) and resurfaces in every future conversation that queries the graph, not just the
+# one where the paper was first read.
+_UNTRUSTED_LABEL_TOOLS: frozenset[str] = frozenset({
+    "search_graph_nodes",
+    "get_node_neighbors",
+    "list_nodes_by_type",
+    "find_similar_keywords",
+})
+
+
+class UntrustedContentMiddleware(AgentMiddleware[Any, Any, Any]):
+    """Wraps the result of any tool named in `_UNTRUSTED_CONTENT_TOOLS` (long framing,
+    `_CONTENT_WARNING`/`_CONTENT_WARNING_FOOTER` from core/arxiv_download.py) or
+    `_UNTRUSTED_LABEL_TOOLS` (short framing, `_GRAPH_LABEL_WARNING`/
+    `_GRAPH_LABEL_WARNING_FOOTER` from memory/graph_tools.py) — the same prompt-injection
+    framing already verified live to matter for `download_paper`: a header alone wasn't
+    "sticky" enough for qwen3.5:4b over a long document, the footer right where generation
+    resumes is what actually closed that gap (see core/arxiv_download.py's docstring).
+
+    Centralizing this here, driven by name sets, is the fix for the gap SECURITY_REVIEW.md
+    documents: a tool that returns external content only needs its name added to the right
+    set, not its own copy of this wrapping — so the next tool added to the agent can't
+    quietly ship without this protection the way search_paper_content and the arxiv-mcp-
+    server tools did.
+    """
+
+    def wrap_tool_call(
+        self,
+        request: "ToolCallRequest",
+        handler: "Callable[[ToolCallRequest], ToolMessage | Any]",
+    ) -> "ToolMessage | Any":
+        result = handler(request)
+        return self._maybe_wrap(request, result)
+
+    async def awrap_tool_call(
+        self,
+        request: "ToolCallRequest",
+        handler: "Callable[[ToolCallRequest], Awaitable[ToolMessage | Any]]",
+    ) -> "ToolMessage | Any":
+        result = await handler(request)
+        return self._maybe_wrap(request, result)
+
+    def _maybe_wrap(self, request: "ToolCallRequest", result: Any) -> Any:
+        name = request.tool_call.get("name")
+
+        if name in _UNTRUSTED_CONTENT_TOOLS:
+            header, footer = _CONTENT_WARNING, _CONTENT_WARNING_FOOTER
+        elif name in _UNTRUSTED_LABEL_TOOLS:
+            header, footer = _GRAPH_LABEL_WARNING, _GRAPH_LABEL_WARNING_FOOTER
+        else:
+            return result
+
+        text = _tool_message_text(result)
+        if not text or text.startswith(header):
+            # Not a ToolMessage with text content, or already wrapped upstream — never
+            # wrap the same result twice.
+            return result
+
+        return ToolMessage(
+            content=header + text + footer,
+            tool_call_id=result.tool_call_id,
+            name=result.name,
+            status=result.status,
+        )
+
+
 class PaperMemoryMiddleware(AgentMiddleware[Any, Any, Any]):
     """Auto-saves every arXiv paper the agent inspects into long-term memory.
 
@@ -1056,7 +1278,22 @@ class PaperMemoryMiddleware(AgentMiddleware[Any, Any, Any]):
         if not paper_id:
             return
 
-        new_fields = {"arXiv ID": paper_id}
+        # SECURITY_IMPLEMENTATION_PLAN.md step 2.1 (provenance tagging, closes
+        # SECURITY_REVIEW.md finding #3 — memory poisoning): Title/Authors/Abstract below
+        # come straight from an arXiv paper this middleware never verified beyond "the tool
+        # call succeeded" — a hostile paper's own wording could be sitting in any of those
+        # fields. Tagging the entry here, once, at the only place a paper's fields ever get
+        # written into long-term memory, means every future search_memory hit on it carries
+        # this marker too (step 2.2 reads it back out and re-applies a warning) instead of
+        # this text quietly becoming indistinguishable from a note the agent wrote with its
+        # own judgment. Fixed value, not model-decided — same reasoning as the rest of this
+        # class: don't leave something this load-bearing to a prompt instruction.
+        # Note: this also organically back-fills older entries that predate this field —
+        # any paper touched again after this change (e.g. download_paper on one already
+        # saved via get_abstract) goes through the merge branch below, which adds this key
+        # to the existing entry the same as any other updated field. No separate migration
+        # script needed for an entry that gets touched again; step 2.3 covers the rest.
+        new_fields = {"arXiv ID": paper_id, "Source": "external (arXiv), unverified"}
 
         if tool_name == "get_abstract":
             new_fields["Title"] = payload.get("title", "")

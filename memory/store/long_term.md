@@ -5,6 +5,7 @@ User is starting to study attention mechanisms in transformers and wants to unde
 <!-- entry:000002:start -->
 ## [000002] paper — 2026-09-10T12:36:10
 arXiv ID: 2604.00965
+Source: external (arXiv), unverified
 Title: Understanding Transformers and Attention Mechanisms: An Introduction for Applied Mathematicians
 Authors: Michel Fabrice Serret
 Categories: math.NA
@@ -13,8 +14,9 @@ Local file: papers/raw/2604.00965.md (full text retrieved)
 Abstract: This document provides a brief introduction to the attention mechanism used in modern language models based on the Transformer architecture. We first illustrate how text is encoded as vectors and how the attention mechanism processes these vectors to encode semantic information. We then describe Multi-Headed Attention, examine how the Transformer architecture is built and look at some of its variants. Finally, we provide a glimpse at modern methods to reduce the computational and memory cost of attention, namely KV caching, Grouped Query attention and Latent Attention. This material is aimed at the applied mathematics community and was written as introductory presentation in the context of the IPAM Research Collaboration Workshop entitled "Randomized Numerical Linear Algebra" (RNLA), for the project: "Randomization in Transformer models".
 <!-- entry:000002:end -->
 <!-- entry:000003:start -->
-## [000003] paper — 2026-09-11T14:13:03
+## [000003] paper — 2026-09-28T09:26:19
 arXiv ID: 1706.03762
+Source: external (arXiv), unverified
 Title: Attention Is All You Need
 Authors: Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, Illia Polosukhin
 Categories: cs.CL, cs.LG
@@ -25,6 +27,7 @@ Abstract: The dominant sequence transduction models are based on complex recurre
 <!-- entry:000004:start -->
 ## [000004] paper — 2026-09-10T17:01:18
 arXiv ID: 2106.09685
+Source: external (arXiv), unverified
 Title: LoRA: Low-Rank Adaptation of Large Language Models
 Authors: Edward J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, Weizhu Chen
 Categories: cs.CL, cs.AI, cs.LG
@@ -35,6 +38,7 @@ Abstract: An important paradigm of natural language processing consists of large
 <!-- entry:000005:start -->
 ## [000005] paper — 2026-09-14T13:17:00
 arXiv ID: 2305.14314
+Source: external (arXiv), unverified
 Title: QLoRA: Efficient Finetuning of Quantized LLMs
 Authors: Tim Dettmers, Artidoro Pagnoni, Ari Holtzman, Luke Zettlemoyer
 Categories: cs.LG
@@ -53,6 +57,7 @@ Always give intuition before formulas when explaining technical concepts. Never 
 <!-- entry:000008:start -->
 ## [000008] paper — 2026-09-17T08:23:32
 arXiv ID: 2609.16661
+Source: external (arXiv), unverified
 Title: DiaWhisper-DPO: Role-Attributed Transcription of Clinical Interviews via Failure-Mined Preference Optimization
 Authors: Weiming Li, Ana Catarina Fidalgo Barata, Miguel Constante, João Miguel Sanches
 Categories: cs.CL
@@ -63,6 +68,7 @@ Abstract: Automated depression screening from clinical interviews requires attri
 <!-- entry:000009:start -->
 ## [000009] paper — 2026-09-17T08:23:34
 arXiv ID: 2609.16644
+Source: external (arXiv), unverified
 Title: WholeBodyWAM: Generalizing Pre-trained World-Action Priors to Humanoid Loco-Manipulation via WBC-Grounded Coordination
 Authors: Zhuo Li, Yiming Yao, Jim Tan, Mengjie Jing, Zhipeng Dong, Fei Chen
 Categories: cs.RO
@@ -73,6 +79,7 @@ Abstract: World Action Models (WAMs) offer a promising approach to general-purpo
 <!-- entry:000010:start -->
 ## [000010] paper — 2026-09-17T08:23:38
 arXiv ID: 2609.16604
+Source: external (arXiv), unverified
 Title: ExecuCritic: Calibrated Critic Shaping for Code Generation with Verifiable Rewards
 Authors: Junjie Cao, Yingjie He
 Categories: cs.SE
@@ -83,6 +90,7 @@ Abstract: Execution feedback is a useful supervision signal for code models beca
 <!-- entry:000011:start -->
 ## [000011] paper — 2026-09-17T08:23:41
 arXiv ID: 2609.16737
+Source: external (arXiv), unverified
 Title: Visual Cue Guided Video Planning for Generalizable Robot Navigation
 Authors: Hojin Lee, Sizhe Lester Li, Maximilian Hilger, Susie Lu, Achim J. Lilienthal, Vincent Sitzmann, Daniel A. Duecker
 Categories: cs.RO, cs.AI, cs.CV, cs.LG
@@ -93,6 +101,7 @@ Abstract: Generative video models can serve as a promising backbone for robot na
 <!-- entry:000012:start -->
 ## [000012] paper — 2026-09-17T08:23:50
 arXiv ID: 2609.16486
+Source: external (arXiv), unverified
 Title: VPRef: A Cross-Domain Benchmark for Referring Remote Sensing Image Segmentation
 Authors: Quanwei Liu, Tao Huang, Jiaqi Yang, Wei Xiang
 Categories: cs.CV
@@ -103,6 +112,7 @@ Abstract: Rapid advancements in vision-language models have propelled Referring 
 <!-- entry:000013:start -->
 ## [000013] paper — 2026-09-17T08:23:53
 arXiv ID: 2609.16537
+Source: external (arXiv), unverified
 Title: What Does Layer-Importance Reveal About Transformers and State-Space Models?
 Authors: Istabrak Abbes, Nizar Islah, Irina Rish, Sarath Chandar
 Categories: cs.LG, cs.AI
@@ -113,6 +123,7 @@ Abstract: Transformers and state-space models (SSMs) are the two dominant famili
 <!-- entry:000014:start -->
 ## [000014] paper — 2026-09-17T08:24:09
 arXiv ID: 2609.16664
+Source: external (arXiv), unverified
 Title: Bridging the Perceptual Gap: Residual-Enhanced Downscaling and Manifold-Aware Perception Alignment Adaptation for NR-IQA
 Authors: Yu Li, Zhengran Shen, Yachun Mi, Puchao Zhou, Shaohui Liu
 Categories: cs.CV
@@ -123,6 +134,7 @@ Abstract: Leveraging Large Vision-Language Models like CLIP has recently set new
 <!-- entry:000015:start -->
 ## [000015] paper — 2026-09-17T08:24:11
 arXiv ID: 2609.16601
+Source: external (arXiv), unverified
 Title: SAVOR: Self-Aware Visual Grounding via Confidence-Calibrated Reinforcement Learning for Multimodal Hallucination Mitigation
 Authors: Zixiu Ding, Zilin Zhao, Yingjie He, Xinlang Kang, Guansu Wang, Wei Zhang
 Categories: cs.CV
@@ -133,6 +145,7 @@ Abstract: Multimodal large language models (MLLMs) have made strong progress on 
 <!-- entry:000016:start -->
 ## [000016] paper — 2026-09-17T08:24:15
 arXiv ID: 2609.16875
+Source: external (arXiv), unverified
 Title: Multi-modal Knowledge Preserving Adapter for Embedding Backward Compatibility
 Authors: Jaeseok Byun, Gukyeong Kwon, Han-Kai Hsu, Meher Gitika Karumuri, Zhikang Zhang, Hao Yang, Davide Modolo
 Categories: cs.CV
@@ -143,6 +156,7 @@ Abstract: Upgrading embedding models typically requires expensive database re-in
 <!-- entry:000017:start -->
 ## [000017] paper — 2026-09-17T08:24:17
 arXiv ID: 2609.17021
+Source: external (arXiv), unverified
 Title: sensVLA: Spatially-Grounded Vision-Language-Action Model for Autonomous Wheel Loader
 Authors: Gopi Krishna Erabati, Bjarne Johannsen, Angus Stewart, Vardeep Singh Sandhu
 Categories: cs.CV, cs.RO
@@ -153,6 +167,7 @@ Abstract: Autonomous wheel-loader control requires joint reasoning over task sem
 <!-- entry:000018:start -->
 ## [000018] paper — 2026-09-17T08:24:21
 arXiv ID: 2609.17019
+Source: external (arXiv), unverified
 Title: SKIP: a Self-knowledge-guided Step-wise Preference Learning Framework for Concise Reasoning
 Authors: Qinhong Lin, Yuhao Zhang, Yinglun Feng, Zhongliang Yang, Linna Zhou
 Categories: cs.AI
@@ -163,6 +178,7 @@ Abstract: While Chain-of-Thought (CoT) reasoning has been proven to be effective
 <!-- entry:000019:start -->
 ## [000019] paper — 2026-09-17T08:24:24
 arXiv ID: 2609.17109
+Source: external (arXiv), unverified
 Title: Shared-Prefix KV Reuse Across Standard LoRA Adapters: Quality and Serving Tradeoffs
 Authors: Dushyant Rajput
 Categories: cs.AI, cs.CL
@@ -173,6 +189,7 @@ Abstract: A common small-model deployment runs one shared backbone with several 
 <!-- entry:000020:start -->
 ## [000020] paper — 2026-09-17T08:24:27
 arXiv ID: 2609.17234
+Source: external (arXiv), unverified
 Title: Self-Distilled Pronunciation and Accent Control for Neural Text-to-Speech
 Authors: Shuhei Kato
 Categories: cs.SD, eess.AS
@@ -183,6 +200,7 @@ Abstract: Text-to-speech that reads raw text has no lexicon: a rare word is read
 <!-- entry:000021:start -->
 ## [000021] paper — 2026-09-17T08:24:30
 arXiv ID: 2609.17398
+Source: external (arXiv), unverified
 Title: Enhancing Accessibility of Medical Texts through Large Language Model-Driven Plain Language Adaptation
 Authors: Ting-Wei Chang, Hen-Hsen Huang, Hsin-Hsi Chen
 Categories: cs.CL
@@ -193,6 +211,7 @@ Abstract: This paper addresses the challenge of making complex healthcare inform
 <!-- entry:000022:start -->
 ## [000022] paper — 2026-09-17T08:24:34
 arXiv ID: 2609.15177
+Source: external (arXiv), unverified
 Title: Temporal Self-Distillation: Faster Inference in Discrete Diffusion Language Models
 Authors: Shijian Xu, Andrea Miele, Metod Jazbec, Volker Roth, Eric Nalisnick, Ilija Bogunovic
 Categories: cs.LG
@@ -203,6 +222,7 @@ Abstract: Diffusion language models (dLLMs) promise fast inference by generating
 <!-- entry:000023:start -->
 ## [000023] paper — 2026-09-17T08:36:58
 arXiv ID: 2505.09388
+Source: external (arXiv), unverified
 Title: Qwen3 Technical Report
 Authors: An Yang, Anfeng Li, Baosong Yang, Beichen Zhang, Binyuan Hui, Bo Zheng, Bowen Yu, Chang Gao, Chengen Huang, Chenxu Lv, Chujie Zheng, Dayiheng Liu, Fan Zhou, Fei Huang, Feng Hu, Hao Ge, Haoran Wei, Huan Lin, Jialong Tang, Jian Yang, Jianhong Tu, Jianwei Zhang, Jianxin Yang, Jiaxi Yang, Jing Zhou, Jingren Zhou, Junyang Lin, Kai Dang, Keqin Bao, Kexin Yang, Le Yu, Lianghao Deng, Mei Li, Mingfeng Xue, Mingze Li, Pei Zhang, Peng Wang, Qin Zhu, Rui Men, Ruize Gao, Shixuan Liu, Shuang Luo, Tianhao Li, Tianyi Tang, Wenbiao Yin, Xingzhang Ren, Xinyu Wang, Xinyu Zhang, Xuancheng Ren, Yang Fan, Yang Su, Yichang Zhang, Yinger Zhang, Yu Wan, Yuqiong Liu, Zekun Wang, Zeyu Cui, Zhenru Zhang, Zhipeng Zhou, Zihan Qiu
 Categories: cs.CL
@@ -213,6 +233,7 @@ Abstract: In this work, we present Qwen3, the latest version of the Qwen model f
 <!-- entry:000024:start -->
 ## [000024] paper — 2026-09-17T08:37:01
 arXiv ID: 2006.11190
+Source: external (arXiv), unverified
 Title: Solving optimization problems with Rydberg analog quantum computers: Realistic requirements for quantum advantage using noisy simulation and classical benchmarks
 Authors: Michel Fabrice Serret, Bertrand Marchand, Thomas Ayral
 Categories: quant-ph, cond-mat.quant-gas
@@ -223,6 +244,7 @@ Abstract: Platforms of Rydberg atoms have been proposed as promising candidates 
 <!-- entry:000025:start -->
 ## [000025] paper — 2026-09-17T08:37:05
 arXiv ID: 1802.05751
+Source: external (arXiv), unverified
 Title: Image Transformer
 Authors: Niki Parmar, Ashish Vaswani, Jakob Uszkoreit, Łukasz Kaiser, Noam Shazeer, Alexander Ku, Dustin Tran
 Categories: cs.CV
@@ -233,6 +255,7 @@ Abstract: Image generation has been successfully cast as an autoregressive seque
 <!-- entry:000026:start -->
 ## [000026] paper — 2026-09-17T08:37:07
 arXiv ID: 1701.06538
+Source: external (arXiv), unverified
 Title: Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer
 Authors: Noam Shazeer, Azalia Mirhoseini, Krzysztof Maziarz, Andy Davis, Quoc Le, Geoffrey Hinton, Jeff Dean
 Categories: cs.LG, cs.CL, cs.NE, stat.ML
@@ -243,6 +266,7 @@ Abstract: The capacity of a neural network to absorb information is limited by i
 <!-- entry:000027:start -->
 ## [000027] paper — 2026-09-17T08:37:11
 arXiv ID: 1906.05909
+Source: external (arXiv), unverified
 Title: Stand-Alone Self-Attention in Vision Models
 Authors: Prajit Ramachandran, Niki Parmar, Ashish Vaswani, Irwan Bello, Anselm Levskaya, Jonathon Shlens
 Categories: cs.CV
@@ -253,6 +277,7 @@ Abstract: Convolutions are a fundamental building block of modern computer visio
 <!-- entry:000028:start -->
 ## [000028] paper — 2026-09-17T08:37:29
 arXiv ID: 2010.10648
+Source: external (arXiv), unverified
 Title: Towards End-to-End In-Image Neural Machine Translation
 Authors: Elman Mansimov, Mitchell Stern, Mia Chen, Orhan Firat, Jakob Uszkoreit, Puneet Jain
 Categories: cs.CL, cs.CV, cs.LG
@@ -263,6 +288,7 @@ Abstract: In this paper, we offer a preliminary investigation into the task of i
 <!-- entry:000029:start -->
 ## [000029] paper — 2026-09-17T08:37:35
 arXiv ID: 2210.05666
+Source: external (arXiv), unverified
 Title: Point Transformer V2: Grouped Vector Attention and Partition-based Pooling
 Authors: Xiaoyang Wu, Yixing Lao, Li Jiang, Xihui Liu, Hengshuang Zhao
 Categories: cs.CV
@@ -273,6 +299,7 @@ Abstract: As a pioneering work exploring transformer architecture for 3D point c
 <!-- entry:000030:start -->
 ## [000030] paper — 2026-09-17T08:37:38
 arXiv ID: 2409.14842
+Source: external (arXiv), unverified
 Title: HW-TSC's Submission to the CCMT 2024 Machine Translation Tasks
 Authors: Zhanglin Wu, Yuanchang Luo, Daimeng Wei, Jiawei Zheng, Bin Wei, Zongyao Li, Hengchao Shang, Jiaxin Guo, Shaojun Li, Weidong Zhang, Ning Xie, Hao Yang
 Categories: cs.AI, cs.CL
@@ -283,6 +310,7 @@ Abstract: This paper presents the submission of Huawei Translation Services Cent
 <!-- entry:000031:start -->
 ## [000031] paper — 2026-09-17T08:37:41
 arXiv ID: 1707.04499
+Source: external (arXiv), unverified
 Title: LIUM Machine Translation Systems for WMT17 News Translation Task
 Authors: Mercedes García-Martínez, Ozan Caglayan, Walid Aransa, Adrien Bardet, Fethi Bougares, Loïc Barrault
 Categories: cs.CL
@@ -293,6 +321,7 @@ Abstract: This paper describes LIUM submissions to WMT17 News Translation Task f
 <!-- entry:000032:start -->
 ## [000032] paper — 2026-09-17T08:37:44
 arXiv ID: 2502.07864
+Source: external (arXiv), unverified
 Title: TransMLA: Multi-Head Latent Attention Is All You Need
 Authors: Fanxu Meng, Pingzhi Tang, Xiaojuan Tang, Zengwei Yao, Xing Sun, Muhan Zhang
 Categories: cs.LG, cs.AI
@@ -303,6 +332,7 @@ Abstract: In this paper, we present TransMLA, a framework that seamlessly conver
 <!-- entry:000033:start -->
 ## [000033] paper — 2026-09-17T08:37:48
 arXiv ID: 2604.01757
+Source: external (arXiv), unverified
 Title: Attention Mechanisms Through the Lens of Numerical Methods: Approximation Methods and Alternative Formulations
 Authors: Michel Fabrice Serret, Alice Cortinovis, Yijun Dong, Diana Halikias, Anna Ma, Fabio Matti, Deanna Needell, Katherine J. Pearce, Elizaveta Rebrova, Disha Shur, Rudi Smith, Hai-Xiao Wang, Laura Grigori
 Categories: math.NA
@@ -313,6 +343,7 @@ Abstract: The attention mechanism is the computational core of modern Transforme
 <!-- entry:000034:start -->
 ## [000034] paper — 2026-09-17T08:37:53
 arXiv ID: 1806.01261
+Source: external (arXiv), unverified
 Title: Relational inductive biases, deep learning, and graph networks
 Authors: Peter W. Battaglia, Jessica B. Hamrick, Victor Bapst, Alvaro Sanchez-Gonzalez, Vinicius Zambaldi, Mateusz Malinowski, Andrea Tacchetti, David Raposo, Adam Santoro, Ryan Faulkner, Caglar Gulcehre, Francis Song, Andrew Ballard, Justin Gilmer, George Dahl, Ashish Vaswani, Kelsey Allen, Charles Nash, Victoria Langston, Chris Dyer, Nicolas Heess, Daan Wierstra, Pushmeet Kohli, Matt Botvinick, Oriol Vinyals, Yujia Li, Razvan Pascanu
 Categories: cs.LG, cs.AI, stat.ML
@@ -323,6 +354,7 @@ Abstract: Artificial intelligence (AI) has undergone a renaissance recently, mak
 <!-- entry:000035:start -->
 ## [000035] paper — 2026-09-17T08:37:56
 arXiv ID: 1911.02150
+Source: external (arXiv), unverified
 Title: Fast Transformer Decoding: One Write-Head is All You Need
 Authors: Noam Shazeer
 Categories: cs.NE, cs.CL, cs.LG
@@ -333,6 +365,7 @@ Abstract: Multi-head attention layers, as used in the Transformer neural sequenc
 <!-- entry:000036:start -->
 ## [000036] paper — 2026-09-17T08:37:59
 arXiv ID: 2103.12731
+Source: external (arXiv), unverified
 Title: Scaling Local Self-Attention for Parameter Efficient Visual Backbones
 Authors: Ashish Vaswani, Prajit Ramachandran, Aravind Srinivas, Niki Parmar, Blake Hechtman, Jonathon Shlens
 Categories: cs.CV
@@ -343,6 +376,7 @@ Abstract: Self-attention has the promise of improving computer vision systems du
 <!-- entry:000037:start -->
 ## [000037] paper — 2026-09-17T08:38:02
 arXiv ID: 1809.04281
+Source: external (arXiv), unverified
 Title: Music Transformer
 Authors: Cheng-Zhi Anna Huang, Ashish Vaswani, Jakob Uszkoreit, Noam Shazeer, Ian Simon, Curtis Hawthorne, Andrew M. Dai, Matthew D. Hoffman, Monica Dinculescu, Douglas Eck
 Categories: cs.LG, cs.SD, eess.AS, stat.ML
@@ -353,6 +387,7 @@ Abstract: Music relies heavily on repetition to build structure and meaning. Sel
 <!-- entry:000038:start -->
 ## [000038] paper — 2026-09-17T08:47:02
 arXiv ID: 1705.04304
+Source: external (arXiv), unverified
 Title: A Deep Reinforced Model for Abstractive Summarization
 Authors: Romain Paulus, Caiming Xiong, Richard Socher
 Categories: cs.CL
@@ -363,6 +398,7 @@ Abstract: Attentional, RNN-based encoder-decoder models for abstractive summariz
 <!-- entry:000039:start -->
 ## [000039] paper — 2026-09-17T08:47:05
 arXiv ID: 2403.11430
+Source: external (arXiv), unverified
 Title: A Novel Paradigm Boosting Translation Capabilities of Large Language Models
 Authors: Jiaxin Guo, Hao Yang, Zongyao Li, Daimeng Wei, Hengchao Shang, Xiaoyu Chen
 Categories: cs.CL
@@ -373,6 +409,7 @@ Abstract: This paper presents a study on strategies to enhance the translation c
 <!-- entry:000040:start -->
 ## [000040] paper — 2026-09-17T08:47:15
 arXiv ID: 1806.01830
+Source: external (arXiv), unverified
 Title: Relational Deep Reinforcement Learning
 Authors: Vinicius Zambaldi, David Raposo, Adam Santoro, Victor Bapst, Yujia Li, Igor Babuschkin, Karl Tuyls, David Reichert, Timothy Lillicrap, Edward Lockhart, Murray Shanahan, Victoria Langston, Razvan Pascanu, Matthew Botvinick, Oriol Vinyals, Peter Battaglia
 Categories: cs.LG, stat.ML
@@ -383,6 +420,7 @@ Abstract: We introduce an approach for deep reinforcement learning (RL) that imp
 <!-- entry:000041:start -->
 ## [000041] paper — 2026-09-17T08:47:18
 arXiv ID: 2102.08602
+Source: external (arXiv), unverified
 Title: LambdaNetworks: Modeling Long-Range Interactions Without Attention
 Authors: Irwan Bello
 Categories: cs.CV, cs.LG
@@ -393,6 +431,7 @@ Abstract: We present lambda layers -- an alternative framework to self-attention
 <!-- entry:000042:start -->
 ## [000042] paper — 2026-09-17T08:47:26
 arXiv ID: 2101.11605
+Source: external (arXiv), unverified
 Title: Bottleneck Transformers for Visual Recognition
 Authors: Aravind Srinivas, Tsung-Yi Lin, Niki Parmar, Jonathon Shlens, Pieter Abbeel, Ashish Vaswani
 Categories: cs.CV, cs.AI, cs.LG
@@ -403,6 +442,7 @@ Abstract: We present BoTNet, a conceptually simple yet powerful backbone archite
 <!-- entry:000043:start -->
 ## [000043] paper — 2026-09-17T08:47:28
 arXiv ID: 1906.01604
+Source: external (arXiv), unverified
 Title: KERMIT: Generative Insertion-Based Modeling for Sequences
 Authors: William Chan, Nikita Kitaev, Kelvin Guu, Mitchell Stern, Jakob Uszkoreit
 Categories: cs.CL, cs.LG, stat.ML
@@ -413,6 +453,7 @@ Abstract: We present KERMIT, a simple insertion-based approach to generative mod
 <!-- entry:000044:start -->
 ## [000044] paper — 2026-09-17T08:47:32
 arXiv ID: 1611.02683
+Source: external (arXiv), unverified
 Title: Unsupervised Pretraining for Sequence to Sequence Learning
 Authors: Prajit Ramachandran, Peter J. Liu, Quoc V. Le
 Categories: cs.CL, cs.LG, cs.NE
@@ -423,6 +464,7 @@ Abstract: This work presents a general unsupervised learning method to improve t
 <!-- entry:000045:start -->
 ## [000045] paper — 2026-09-17T08:47:35
 arXiv ID: 2005.01864
+Source: external (arXiv), unverified
 Title: Streaming Object Detection for 3-D Point Clouds
 Authors: Wei Han, Zhengdong Zhang, Benjamin Caine, Brandon Yang, Christoph Sprunk, Ouais Alsharif, Jiquan Ngiam, Vijay Vasudevan, Jonathon Shlens, Zhifeng Chen
 Categories: cs.CV
@@ -433,6 +475,7 @@ Abstract: Autonomous vehicles operate in a dynamic environment, where the speed 
 <!-- entry:000046:start -->
 ## [000046] paper — 2026-09-17T08:47:39
 arXiv ID: 2605.31005
+Source: external (arXiv), unverified
 Title: Learning Multi-Agent Coordination via Sheaf-ADMM
 Authors: Jeffrey Seely, Bartłomiej Cupiał, Llion Jones
 Categories: cs.LG
@@ -443,6 +486,7 @@ Abstract: We present a differentiable optimization framework for multi-agent coo
 <!-- entry:000047:start -->
 ## [000047] paper — 2026-09-17T08:47:41
 arXiv ID: 1905.13678
+Source: external (arXiv), unverified
 Title: Learning Sparse Networks Using Targeted Dropout
 Authors: Aidan N. Gomez, Ivan Zhang, Siddhartha Rao Kamalakara, Divyam Madaan, Kevin Swersky, Yarin Gal, Geoffrey E. Hinton
 Categories: cs.LG, stat.ML
@@ -453,6 +497,7 @@ Abstract: Neural networks are easier to optimise when they have many more weight
 <!-- entry:000048:start -->
 ## [000048] paper — 2026-09-17T08:47:45
 arXiv ID: 1209.1738
+Source: external (arXiv), unverified
 Title: Model Checking the Quantitative mu-Calculus on Linear Hybrid Systems
 Authors: Diana Fischer, Lukasz Kaiser
 Categories: cs.LO
@@ -463,6 +508,7 @@ Abstract: We study the model-checking problem for a quantitative extension of th
 <!-- entry:000049:start -->
 ## [000049] paper — 2026-09-17T08:47:48
 arXiv ID: 1702.01806
+Source: external (arXiv), unverified
 Title: Beam Search Strategies for Neural Machine Translation
 Authors: Markus Freitag, Yaser Al-Onaizan
 Categories: cs.CL
@@ -473,6 +519,7 @@ Abstract: The basic concept in Neural Machine Translation (NMT) is to train a la
 <!-- entry:000050:start -->
 ## [000050] paper — 2026-09-17T08:47:51
 arXiv ID: 2410.03381
+Source: external (arXiv), unverified
 Title: Cogs in a Machine, Doing What They're Meant to Do -- The AMI Submission to the WMT24 General Translation Task
 Authors: Atli Jasonarson, Hinrik Hafsteinsson, Bjarki Ármannsson, Steinþór Steingrímsson
 Categories: cs.CL
@@ -483,6 +530,7 @@ Abstract: This paper presents the submission of the Árni Magnusson Institute's 
 <!-- entry:000051:start -->
 ## [000051] paper — 2026-09-17T08:47:55
 arXiv ID: 2508.14472
+Source: external (arXiv), unverified
 Title: In2x at WMT25 Translation Task
 Authors: Lei Pang, Hanyi Mao, Quanjia Xiao, HaiXiao Liu, Xiangyi Li
 Categories: cs.CL, cs.AI
@@ -493,6 +541,7 @@ Abstract: This paper presents the open-system submission by the In2x research te
 <!-- entry:000052:start -->
 ## [000052] paper — 2026-09-17T08:47:58
 arXiv ID: 2407.10855
+Source: external (arXiv), unverified
 Title: Weighted Grouped Query Attention in Transformers
 Authors: Sai Sena Chinnakonduru, Astarag Mohapatra
 Categories: cs.CL, cs.AI
@@ -503,6 +552,7 @@ Abstract: The attention mechanism forms the foundational blocks for transformer 
 <!-- entry:000053:start -->
 ## [000053] paper — 2026-09-17T08:48:02
 arXiv ID: 2603.21389
+Source: external (arXiv), unverified
 Title: Task-Specific Efficiency Analysis: When Small Language Models Outperform Large Language Models
 Authors: Jinghan Cao, Yu Ma, Xinjin Li, Qingyang Ren, Xiangyun Chen
 Categories: cs.CL, cs.LG
@@ -513,6 +563,7 @@ Abstract: Large Language Models achieve remarkable performance but incur substan
 <!-- entry:000054:start -->
 ## [000054] paper — 2026-09-17T08:48:06
 arXiv ID: 1705.03122
+Source: external (arXiv), unverified
 Title: Convolutional Sequence to Sequence Learning
 Authors: Jonas Gehring, Michael Auli, David Grangier, Denis Yarats, Yann N. Dauphin
 Categories: cs.CL
@@ -523,6 +574,7 @@ Abstract: The prevalent approach to sequence to sequence learning maps an input 
 <!-- entry:000055:start -->
 ## [000055] paper — 2026-09-17T08:48:10
 arXiv ID: 2402.06894
+Source: external (arXiv), unverified
 Title: GenTranslate: Large Language Models are Generative Multilingual Speech and Machine Translators
 Authors: Yuchen Hu, Chen Chen, Chao-Han Huck Yang, Ruizhe Li, Dong Zhang, Zhehuai Chen, Eng Siong Chng
 Categories: cs.CL, cs.AI, cs.LG, cs.SD, eess.AS
@@ -533,6 +585,7 @@ Abstract: Recent advances in large language models (LLMs) have stepped forward t
 <!-- entry:000056:start -->
 ## [000056] paper — 2026-09-17T08:48:15
 arXiv ID: 1806.01242
+Source: external (arXiv), unverified
 Title: Graph networks as learnable physics engines for inference and control
 Authors: Alvaro Sanchez-Gonzalez, Nicolas Heess, Jost Tobias Springenberg, Josh Merel, Martin Riedmiller, Raia Hadsell, Peter Battaglia
 Categories: cs.LG, cs.AI, stat.ML
@@ -543,6 +596,7 @@ Abstract: Understanding and interacting with everyday physical scenes requires r
 <!-- entry:000057:start -->
 ## [000057] paper — 2026-09-17T08:48:17
 arXiv ID: 1710.05941
+Source: external (arXiv), unverified
 Title: Searching for Activation Functions
 Authors: Prajit Ramachandran, Barret Zoph, Quoc V. Le
 Categories: cs.NE, cs.CV, cs.LG
@@ -553,6 +607,7 @@ Abstract: The choice of activation functions in deep networks has a significant 
 <!-- entry:000058:start -->
 ## [000058] paper — 2026-09-17T08:48:20
 arXiv ID: 1903.00925
+Source: external (arXiv), unverified
 Title: Accelerating Training of Deep Neural Networks with a Standardization Loss
 Authors: Jasmine Collins, Johannes Balle, Jonathon Shlens
 Categories: cs.LG, cs.AI, cs.CV, stat.ML
@@ -563,6 +618,7 @@ Abstract: A significant advance in accelerating neural network training has been
 <!-- entry:000059:start -->
 ## [000059] paper — 2026-09-17T08:48:25
 arXiv ID: 2408.04242
+Source: external (arXiv), unverified
 Title: The Ungrounded Alignment Problem
 Authors: Marc Pickett, Aakash Kumar Nain, Joseph Modayil, Llion Jones
 Categories: cs.LG, cs.AI, cs.NE
@@ -573,6 +629,7 @@ Abstract: Modern machine learning systems have demonstrated substantial abilitie
 <!-- entry:000060:start -->
 ## [000060] paper — 2026-09-17T08:48:42
 arXiv ID: 1706.03059
+Source: external (arXiv), unverified
 Title: Depthwise Separable Convolutions for Neural Machine Translation
 Authors: Lukasz Kaiser, Aidan N. Gomez, Francois Chollet
 Categories: cs.CL, cs.LG
@@ -583,6 +640,7 @@ Abstract: Depthwise separable convolutions reduce the number of parameters and c
 <!-- entry:000061:start -->
 ## [000061] paper — 2026-09-17T08:49:01
 arXiv ID: 1511.08228
+Source: external (arXiv), unverified
 Title: Neural GPUs Learn Algorithms
 Authors: Łukasz Kaiser, Ilya Sutskever
 Categories: cs.LG, cs.NE
@@ -593,6 +651,7 @@ Abstract: Learning an algorithm from examples is a fundamental problem that has 
 <!-- entry:000062:start -->
 ## [000062] paper — 2026-09-17T08:49:04
 arXiv ID: 1809.00357
+Source: external (arXiv), unverified
 Title: Trivial Transfer Learning for Low-Resource Neural Machine Translation
 Authors: Tom Kocmi, Ondřej Bojar
 Categories: cs.CL
@@ -603,6 +662,7 @@ Abstract: Transfer learning has been proven as an effective technique for neural
 <!-- entry:000063:start -->
 ## [000063] paper — 2026-09-17T10:17:18
 arXiv ID: 2103.05103
+Source: external (arXiv), unverified
 Title: Image Captioning using Multiple Transformers for Self-Attention Mechanism
 Authors: Farrukh Olimov, Shikha Dubey, Labina Shrestha, Tran Trung Tin, Moongu Jeon
 Categories: cs.CV, cs.AI, cs.CL
@@ -613,6 +673,7 @@ Abstract: Real-time image captioning, along with adequate precision, is the main
 <!-- entry:000064:start -->
 ## [000064] paper — 2026-09-17T10:17:20
 arXiv ID: 2007.13199
+Source: external (arXiv), unverified
 Title: Double Multi-Head Attention for Speaker Verification
 Authors: Miquel India, Pooyan Safari, Javier Hernando
 Categories: eess.AS, cs.SD
@@ -623,6 +684,7 @@ Abstract: Most state-of-the-art Deep Learning systems for speaker verification a
 <!-- entry:000065:start -->
 ## [000065] paper — 2026-09-17T10:17:24
 arXiv ID: 2506.04956
+Source: external (arXiv), unverified
 Title: FEAT: Full-Dimensional Efficient Attention Transformer for Medical Video Generation
 Authors: Huihan Wang, Zhiwen Yang, Hui Zhang, Dan Zhao, Bingzheng Wei, Yan Xu
 Categories: cs.CV
@@ -633,6 +695,7 @@ Abstract: Synthesizing high-quality dynamic medical videos remains a significant
 <!-- entry:000066:start -->
 ## [000066] paper — 2026-09-17T10:17:28
 arXiv ID: 2607.07953
+Source: external (arXiv), unverified
 Title: Linear Attention Architectures: Mechanisms, Trade-offs, and Cross-Layer Routing
 Authors: Tommaso Cerruti, Tim Rieder, George Rowlands, Lingfeng Jin, Imanol Schlag
 Categories: cs.LG, cs.AI
@@ -643,6 +706,7 @@ Abstract: Self-attention lets each token retrieve information from the full cont
 <!-- entry:000067:start -->
 ## [000067] paper — 2026-09-17T10:17:30
 arXiv ID: 2601.15305
+Source: external (arXiv), unverified
 Title: Gated Sparse Attention: Combining Computational Efficiency with Training Stability for Long-Context Language Models
 Authors: Alfred Shen, Aaron Shen
 Categories: cs.AI
@@ -653,6 +717,7 @@ Abstract: The computational burden of attention in long-context language models 
 <!-- entry:000068:start -->
 ## [000068] paper — 2026-09-17T10:17:35
 arXiv ID: 2303.17696
+Source: external (arXiv), unverified
 Title: Dual Cross-Attention for Medical Image Segmentation
 Authors: Gorkem Can Ates, Prasoon Mohan, Emrah Celik
 Categories: cs.CV, cs.LG, eess.IV
@@ -663,6 +728,7 @@ Abstract: We propose Dual Cross-Attention (DCA), a simple yet effective attentio
 <!-- entry:000069:start -->
 ## [000069] paper — 2026-09-17T10:17:38
 arXiv ID: 2512.07011
+Source: external (arXiv), unverified
 Title: Block Sparse Flash Attention
 Authors: Daniel Ohayon, Itay Lamprecht, Itay Hubara, Israel Cohen, Daniel Soudry, Noam Elata
 Categories: cs.LG, cs.CL, cs.PF
@@ -673,6 +739,7 @@ Abstract: Modern large language models increasingly require long contexts for re
 <!-- entry:000070:start -->
 ## [000070] paper — 2026-09-17T10:17:41
 arXiv ID: 2604.21816
+Source: external (arXiv), unverified
 Title: Tool Attention Is All You Need: Dynamic Tool Gating and Lazy Schema Loading for Eliminating the MCP/Tools Tax in Scalable Agentic Workflows
 Authors: Anuj Sadani, Deepak Kumar
 Categories: cs.AI
@@ -683,6 +750,7 @@ Abstract: The Model Context Protocol (MCP) has become a common interface for con
 <!-- entry:000071:start -->
 ## [000071] paper — 2026-09-17T10:17:45
 arXiv ID: 1808.02822
+Source: external (arXiv), unverified
 Title: Backprop Evolution
 Authors: Maximilian Alber, Irwan Bello, Barret Zoph, Pieter-Jan Kindermans, Prajit Ramachandran, Quoc Le
 Categories: cs.NE, cs.LG, stat.ML
@@ -693,6 +761,7 @@ Abstract: The back-propagation algorithm is the cornerstone of deep learning. De
 <!-- entry:000072:start -->
 ## [000072] paper — 2026-09-17T10:17:48
 arXiv ID: 1908.11069
+Source: external (arXiv), unverified
 Title: StarNet: Targeted Computation for Object Detection in Point Clouds
 Authors: Jiquan Ngiam, Benjamin Caine, Wei Han, Brandon Yang, Yuning Chai, Pei Sun, Yin Zhou, Xi Yi, Ouais Alsharif, Patrick Nguyen, Zhifeng Chen, Jonathon Shlens, Vijay Vasudevan
 Categories: cs.CV
@@ -703,6 +772,7 @@ Abstract: Detecting objects from LiDAR point clouds is an important component of
 <!-- entry:000073:start -->
 ## [000073] paper — 2026-09-17T10:17:54
 arXiv ID: 2311.16738
+Source: external (arXiv), unverified
 Title: Riemannian Self-Attention Mechanism for SPD Networks
 Authors: Rui Wang, Xiao-Jun Wu, Hui Li, Josef Kittler
 Categories: cs.CV
@@ -713,6 +783,7 @@ Abstract: Symmetric positive definite (SPD) matrix has been demonstrated to be a
 <!-- entry:000074:start -->
 ## [000074] paper — 2026-09-17T10:18:00
 arXiv ID: 2401.17426
+Source: external (arXiv), unverified
 Title: Superiority of Multi-Head Attention in In-Context Linear Regression
 Authors: Yingqian Cui, Jie Ren, Pengfei He, Jiliang Tang, Yue Xing
 Categories: cs.LG, cs.AI, stat.ML
@@ -723,6 +794,7 @@ Abstract: We present a theoretical analysis of the performance of transformer wi
 <!-- entry:000075:start -->
 ## [000075] paper — 2026-09-17T10:18:02
 arXiv ID: 2311.13657
+Source: external (arXiv), unverified
 Title: Efficient Transformer Knowledge Distillation: A Performance Review
 Authors: Nathan Brown, Ashton Williamson, Tahj Anderson, Logan Lawrence
 Categories: cs.CL, cs.LG
@@ -733,6 +805,7 @@ Abstract: As pretrained transformer language models continue to achieve state-of
 <!-- entry:000076:start -->
 ## [000076] paper — 2026-09-17T10:18:05
 arXiv ID: 2606.10650
+Source: external (arXiv), unverified
 Title: Dynamic Linear Attention
 Authors: Xin Wang, Hui Shen, Boyuan Zheng, Xueshen Liu, Minkyoung Cho, Zhongwei Wan, Zesen Zhao, Zhuoqing Mao, Shen Yan, Mi Zhang
 Categories: cs.CL, cs.AI
@@ -743,6 +816,7 @@ Abstract: The scalability of Large Language Models (LLMs) to long contexts is fu
 <!-- entry:000077:start -->
 ## [000077] paper — 2026-09-17T10:18:20
 arXiv ID: 2502.18137
+Source: external (arXiv), unverified
 Title: SpargeAttention: Accurate and Training-free Sparse Attention Accelerating Any Model Inference
 Authors: Jintao Zhang, Chendong Xiang, Haofeng Huang, Jia Wei, Haocheng Xi, Jun Zhu, Jianfei Chen
 Categories: cs.LG, cs.AI, cs.CV, cs.PF
@@ -753,6 +827,7 @@ Abstract: An efficient attention implementation is essential for large models du
 <!-- entry:000078:start -->
 ## [000078] paper — 2026-09-17T10:18:27
 arXiv ID: 2505.08426
+Source: external (arXiv), unverified
 Title: DHECA-SuperGaze: Dual Head-Eye Cross-Attention and Super-Resolution for Unconstrained Gaze Estimation
 Authors: Franko Šikić, Donik Vršnak, Sven Lončarić
 Categories: cs.CV
@@ -763,6 +838,7 @@ Abstract: Unconstrained gaze estimation is the process of determining where a su
 <!-- entry:000079:start -->
 ## [000079] paper — 2026-09-17T10:18:45
 arXiv ID: 2405.02803
+Source: external (arXiv), unverified
 Title: Is Flash Attention Stable?
 Authors: Alicia Golden, Samuel Hsia, Fei Sun, Bilge Acun, Basil Hosmer, Yejin Lee, Zachary DeVito, Jeff Johnson, Gu-Yeon Wei, David Brooks, Carole-Jean Wu
 Categories: cs.LG, cs.DC
@@ -773,6 +849,7 @@ Abstract: Training large-scale machine learning models poses distinct system cha
 <!-- entry:000080:start -->
 ## [000080] paper — 2026-09-17T10:18:49
 arXiv ID: 2104.04692
+Source: external (arXiv), unverified
 Title: Not All Attention Is All You Need
 Authors: Hongqiu Wu, Hai Zhao, Min Zhang
 Categories: cs.CL
@@ -783,6 +860,7 @@ Abstract: Beyond the success story of pre-trained language models (PrLMs) in rec
 <!-- entry:000081:start -->
 ## [000081] paper — 2026-09-17T10:18:53
 arXiv ID: 1810.02019
+Source: external (arXiv), unverified
 Title: Seq2Slate: Re-ranking and Slate Optimization with RNNs
 Authors: Irwan Bello, Sayali Kulkarni, Sagar Jain, Craig Boutilier, Ed Chi, Elad Eban, Xiyang Luo, Alan Mackey, Ofer Meshi
 Categories: cs.IR, cs.LG, stat.ML
@@ -793,6 +871,7 @@ Abstract: Ranking is a central task in machine learning and information retrieva
 <!-- entry:000082:start -->
 ## [000082] paper — 2026-09-17T10:18:56
 arXiv ID: 2310.11398
+Source: external (arXiv), unverified
 Title: Neural Attention: Enhancing QKV Calculation in Self-Attention Mechanism with Neural Networks
 Authors: Muhan Zhang
 Categories: cs.CL, cs.AI
@@ -803,6 +882,7 @@ Abstract: In the realm of deep learning, the self-attention mechanism has substa
 <!-- entry:000083:start -->
 ## [000083] paper — 2026-09-17T10:19:00
 arXiv ID: 2410.11842
+Source: external (arXiv), unverified
 Title: MoH: Multi-Head Attention as Mixture-of-Head Attention
 Authors: Peng Jin, Bo Zhu, Li Yuan, Shuicheng Yan
 Categories: cs.CV, cs.AI, cs.LG
@@ -813,6 +893,7 @@ Abstract: In this work, we upgrade the multi-head attention mechanism, the core 
 <!-- entry:000084:start -->
 ## [000084] paper — 2026-09-17T10:19:03
 arXiv ID: 2507.00698
+Source: external (arXiv), unverified
 Title: Rectifying Magnitude Neglect in Linear Attention
 Authors: Qihang Fan, Huaibo Huang, Yuang Ai, Ran He
 Categories: cs.CV
@@ -823,6 +904,7 @@ Abstract: As the core operator of Transformers, Softmax Attention exhibits excel
 <!-- entry:000085:start -->
 ## [000085] paper — 2026-09-17T10:19:12
 arXiv ID: 2511.20102
+Source: external (arXiv), unverified
 Title: SSA: Sparse Sparse Attention by Aligning Full and Sparse Attention Outputs in Feature Space
 Authors: Zhenyi Shen, Junru Lu, Lin Gui, Jiazheng Li, Yulan He, Di Yin, Xing Sun
 Categories: cs.CL
@@ -833,6 +915,7 @@ Abstract: Sparse attention reduces the quadratic complexity of full self-attenti
 <!-- entry:000086:start -->
 ## [000086] paper — 2026-09-17T10:19:14
 arXiv ID: 2204.00452
+Source: external (arXiv), unverified
 Title: Vision Transformer with Cross-attention by Temporal Shift for Efficient Action Recognition
 Authors: Ryota Hashiguchi, Toru Tamaki
 Categories: cs.CV
@@ -843,6 +926,7 @@ Abstract: Feature shifts have been shown to be useful for action recognition wit
 <!-- entry:000087:start -->
 ## [000087] paper — 2026-09-17T10:19:27
 arXiv ID: 2609.04910
+Source: external (arXiv), unverified
 Title: Fast Gauss Sums via Flash Attention
 Authors: Nicolaj Rux, Sebastian Neumayer
 Categories: cs.LG, math.NA
@@ -853,6 +937,7 @@ Abstract: Gaussian kernel sums are the computational core of maximum mean discre
 <!-- entry:000088:start -->
 ## [000088] paper — 2026-09-17T10:34:43
 arXiv ID: 1811.09575
+Source: external (arXiv), unverified
 Title: A Hierarchical Neural Network for Sequence-to-Sequences Learning
 Authors: Si Zuo, Zhimin Xu
 Categories: cs.CL
@@ -863,6 +948,7 @@ Abstract: In recent years, the sequence-to-sequence learning neural networks wit
 <!-- entry:000089:start -->
 ## [000089] paper — 2026-09-17T10:34:55
 arXiv ID: 2107.01343
+Source: external (arXiv), unverified
 Title: Short-term probabilistic photovoltaic power forecast based on deep convolutional long short-term memory network and kernel density estimation
 Authors: Mingliang Bai, Xinyu Zhao, Zhenhua Long, Jinfu Liu, Daren Yu
 Categories: cs.LG, eess.SP
@@ -873,6 +959,7 @@ Abstract: Solar energy is a clean and renewable energy. Photovoltaic (PV) power 
 <!-- entry:000090:start -->
 ## [000090] paper — 2026-09-17T10:35:02
 arXiv ID: 1701.05923
+Source: external (arXiv), unverified
 Title: Gate-Variants of Gated Recurrent Unit (GRU) Neural Networks
 Authors: Rahul Dey, Fathi M. Salem
 Categories: cs.NE, stat.ML
@@ -883,6 +970,7 @@ Abstract: The paper evaluates three variants of the Gated Recurrent Unit (GRU) i
 <!-- entry:000091:start -->
 ## [000091] paper — 2026-09-17T10:35:04
 arXiv ID: 1904.04163
+Source: external (arXiv), unverified
 Title: Knowledge Distillation For Recurrent Neural Network Language Modeling With Trust Regularization
 Authors: Yangyang Shi, Mei-Yuh Hwang, Xin Lei, Haoyu Sheng
 Categories: cs.CL
@@ -893,6 +981,7 @@ Abstract: Recurrent Neural Networks (RNNs) have dominated language modeling beca
 <!-- entry:000092:start -->
 ## [000092] paper — 2026-09-17T10:35:16
 arXiv ID: 2203.00595
+Source: external (arXiv), unverified
 Title: Parameter estimation for WMTI-Watson model of white matter using encoder-decoder recurrent neural network
 Authors: Yujian Diao, Ileana Ozana Jelescu
 Categories: physics.med-ph, cs.LG, physics.bio-ph, q-bio.QM
@@ -903,6 +992,7 @@ Abstract: Biophysical modelling of the diffusion MRI signal provides estimates o
 <!-- entry:000093:start -->
 ## [000093] paper — 2026-09-17T10:35:26
 arXiv ID: 2108.01310
+Source: external (arXiv), unverified
 Title: Simulation of Open Quantum Dynamics with Bootstrap-Based Long Short-Term Memory Recurrent Neural Network
 Authors: Kunni Lin, Jiawei Peng, Feng Long Gu, Zhenggang Lan
 Categories: physics.chem-ph, quant-ph
@@ -913,6 +1003,7 @@ Abstract: The recurrent neural network with the long short-term memory cell (LST
 <!-- entry:000094:start -->
 ## [000094] paper — 2026-09-17T10:35:32
 arXiv ID: 2008.05575
+Source: external (arXiv), unverified
 Title: Comprehensive forecasting based analysis using stacked stateless and stateful Gated Recurrent Unit models
 Authors: Swayamjit Saha, Niladri Majumder, Devansh Sangani
 Categories: cs.LG, cs.NE
@@ -923,6 +1014,7 @@ Abstract: Photovoltaic power is a renewable source of energy which is highly use
 <!-- entry:000095:start -->
 ## [000095] paper — 2026-09-17T10:35:50
 arXiv ID: 1611.00196
+Source: external (arXiv), unverified
 Title: Recurrent Neural Network Language Model Adaptation Derived Document Vector
 Authors: Wei Li, Brian Kan Wing Mak
 Categories: cs.CL
@@ -933,6 +1025,7 @@ Abstract: In many natural language processing (NLP) tasks, a document is commonl
 <!-- entry:000096:start -->
 ## [000096] paper — 2026-09-17T10:35:53
 arXiv ID: 1512.01712
+Source: external (arXiv), unverified
 Title: Generating News Headlines with Recurrent Neural Networks
 Authors: Konstantin Lopyrev
 Categories: cs.CL, cs.LG, cs.NE
@@ -943,6 +1036,7 @@ Abstract: We describe an application of an encoder-decoder recurrent neural netw
 <!-- entry:000097:start -->
 ## [000097] paper — 2026-09-17T10:36:03
 arXiv ID: 2409.08297
+Source: external (arXiv), unverified
 Title: Comparative Study of Long Short-Term Memory (LSTM) and Quantum Long Short-Term Memory (QLSTM): Prediction of Stock Market Movement
 Authors: Tariq Mahmood, Ibtasam Ahmad, Malik Muhammad Zeeshan Ansar, Jumanah Ahmed Darwish, Rehan Ahmad Khan Sherwani
 Categories: q-fin.ST, cs.AI, cs.LG, quant-ph
@@ -953,6 +1047,7 @@ Abstract: In recent years, financial analysts have been trying to develop models
 <!-- entry:000098:start -->
 ## [000098] paper — 2026-09-17T10:36:19
 arXiv ID: 2412.20171
+Source: external (arXiv), unverified
 Title: Geo-ConvGRU: Geographically Masked Convolutional Gated Recurrent Unit for Bird-Eye View Segmentation
 Authors: Guanglei Yang, Yongqiang Zhang, Wanlong Li, Yu Tang, Weize Shang, Feng Wen, Hongbo Zhang, Mingli Ding
 Categories: cs.CV
@@ -963,6 +1058,7 @@ Abstract: Convolutional Neural Networks (CNNs) have significantly impacted vario
 <!-- entry:000099:start -->
 ## [000099] paper — 2026-09-17T10:36:21
 arXiv ID: 1506.01192
+Source: external (arXiv), unverified
 Title: Personalizing Universal Recurrent Neural Network Language Model with User Characteristic Features by Social Network Crowdsouring
 Authors: Bo-Hsiang Tseng, Hung-Yi Lee, Lin-Shan Lee
 Categories: cs.CL, cs.LG
@@ -973,6 +1069,7 @@ Abstract: With the popularity of mobile devices, personalized speech recognizer 
 <!-- entry:000100:start -->
 ## [000100] paper — 2026-09-17T10:36:25
 arXiv ID: 1705.06106
+Source: external (arXiv), unverified
 Title: Unlabeled Data for Morphological Generation With Character-Based Sequence-to-Sequence Models
 Authors: Katharina Kann, Hinrich Schütze
 Categories: cs.CL
@@ -983,6 +1080,7 @@ Abstract: We present a semi-supervised way of training a character-based encoder
 <!-- entry:000101:start -->
 ## [000101] paper — 2026-09-17T10:37:46
 arXiv ID: 2511.06020
+Source: external (arXiv), unverified
 Title: RF-Behavior: A Multimodal Radio-Frequency Dataset for Human Behavior and Emotion Analysis
 Authors: Si Zuo, Yuqing Song, Sahar Golipoor, Ying Liu, Xujun Ma, Stephan Sigg
 Categories: cs.DB
@@ -993,6 +1091,7 @@ Abstract: Recent research has demonstrated the complementary nature of camera-ba
 <!-- entry:000102:start -->
 ## [000102] paper — 2026-09-17T10:37:51
 arXiv ID: 2408.09191
+Source: external (arXiv), unverified
 Title: GSLAMOT: A Tracklet and Query Graph-based Simultaneous Locating, Mapping, and Multiple Object Tracking System
 Authors: Shuo Wang, Yongcai Wang, Zhimin Xu, Yongyu Guo, Wanting Li, Zhe Huang, Xuewei Bai, Deying Li
 Categories: cs.CV
@@ -1003,6 +1102,7 @@ Abstract: For interacting with mobile objects in unfamiliar environments, simult
 <!-- entry:000103:start -->
 ## [000103] paper — 2026-09-17T10:38:21
 arXiv ID: 2308.01414
+Source: external (arXiv), unverified
 Title: HouYi: An open-source large language model specially designed for renewable energy and carbon neutrality field
 Authors: Mingliang Bai, Zhihao Zhou, Ruidong Wang, Yusheng Yang, Zizhen Qin, Yunxiao Chen, Chunjin Mu, Jinfu Liu, Daren Yu
 Categories: cs.CL, cs.AI
@@ -1013,6 +1113,7 @@ Abstract: Renewable energy is important for achieving carbon neutrality goal. Wi
 <!-- entry:000104:start -->
 ## [000104] paper — 2026-09-17T10:38:26
 arXiv ID: 1408.2162
+Source: external (arXiv), unverified
 Title: Uhrig Dynamical Control of a Three-Level System Via Non-Markovian Quantum State Diffusion
 Authors: Wenchong Shu, Xinyu Zhao, Jun Jing, Lian-Ao Wu, Ting Yu
 Categories: quant-ph
@@ -1023,6 +1124,7 @@ Abstract: In this paper, we use the quantum state diffusion (QSD) equation to im
 <!-- entry:000105:start -->
 ## [000105] paper — 2026-09-17T10:38:30
 arXiv ID: 2512.03837
+Source: external (arXiv), unverified
 Title: Heatmap Pooling Network for Action Recognition from RGB Videos
 Authors: Mengyuan Liu, Jinfu Liu, Yongkang Jiang, Bin He
 Categories: cs.CV
@@ -1033,6 +1135,7 @@ Abstract: Human action recognition (HAR) in videos has garnered widespread atten
 <!-- entry:000106:start -->
 ## [000106] paper — 2026-09-17T10:38:36
 arXiv ID: 2604.17903
+Source: external (arXiv), unverified
 Title: Research on mode transition of micro-newton-level cusped field Hall thruster
 Authors: Jiahao Wu, Ming Zeng, Hui Liu, Daren Yu
 Categories: physics.plasm-ph
@@ -1043,6 +1146,7 @@ Abstract: The micro-newton cusped field Hall thruster is an electric propulsion 
 <!-- entry:000107:start -->
 ## [000107] paper — 2026-09-17T10:39:05
 arXiv ID: 2112.00879
+Source: external (arXiv), unverified
 Title: Generating Diverse 3D Reconstructions from a Single Occluded Face Image
 Authors: Rahul Dey, Vishnu Naresh Boddeti
 Categories: cs.CV
@@ -1053,6 +1157,7 @@ Abstract: Occlusions are a common occurrence in unconstrained face images. Singl
 <!-- entry:000108:start -->
 ## [000108] paper — 2026-09-17T10:39:07
 arXiv ID: 1712.00006
+Source: external (arXiv), unverified
 Title: Comparing Deep Reinforcement Learning and Evolutionary Methods in Continuous Control
 Authors: Shangtong Zhang, Osmar R. Zaiane
 Categories: cs.LG, cs.AI
@@ -1063,6 +1168,7 @@ Abstract: Reinforcement Learning and the Evolutionary Strategy are two major app
 <!-- entry:000109:start -->
 ## [000109] paper — 2026-09-17T10:39:14
 arXiv ID: 1812.01943
+Source: external (arXiv), unverified
 Title: Prediction of typhoon tracks using a generative adversarial network with observational and meteorological data
 Authors: Mario Rüttgers, Sangseung Lee, Donghyun You
 Categories: physics.ao-ph
@@ -1073,6 +1179,7 @@ Abstract: Tracks of typhoons are predicted using a generative adversarial networ
 <!-- entry:000110:start -->
 ## [000110] paper — 2026-09-17T10:39:28
 arXiv ID: 2110.08079
+Source: external (arXiv), unverified
 Title: Automated Quality Control of Vacuum Insulated Glazing by Convolutional Neural Network Image Classification
 Authors: Henrik Riedel, Sleheddine Mokdad, Isabell Schulz, Cenk Kocer, Philipp Rosendahl, Jens Schneider, Michael A. Kraus, Michael Drass
 Categories: cs.CV, cs.AI
@@ -1083,6 +1190,7 @@ Abstract: Vacuum Insulated Glazing (VIG) is a highly thermally insulating window
 <!-- entry:000111:start -->
 ## [000111] paper — 2026-09-17T10:39:31
 arXiv ID: 2408.06717
+Source: external (arXiv), unverified
 Title: Proficient Graph Neural Network Design by Accumulating Knowledge on Large Language Models
 Authors: Jialiang Wang, Hanmo Liu, Shimin Di, Zhili Wang, Jiachuan Wang, Lei Chen, Xiaofang Zhou
 Categories: cs.LG, cs.AI
@@ -1093,6 +1201,7 @@ Abstract: High-level automation is increasingly critical in AI, driven by rapid 
 <!-- entry:000112:start -->
 ## [000112] paper — 2026-09-17T10:39:35
 arXiv ID: 1708.07012
+Source: external (arXiv), unverified
 Title: Variational autoencoders for tissue heterogeneity exploration from (almost) no preprocessed mass spectrometry imaging data
 Authors: Paolo Inglese, James L. Alexander, Anna Mroz, Zoltan Takats, Robert Glen
 Categories: q-bio.QM, cs.LG, stat.ML
@@ -1103,6 +1212,7 @@ Abstract: The paper presents the application of Variational Autoencoders (VAE) f
 <!-- entry:000113:start -->
 ## [000113] paper — 2026-09-17T10:39:37
 arXiv ID: 2505.03377
+Source: external (arXiv), unverified
 Title: Gene finding revisited: improved robustness through structured decoding from learned embeddings
 Authors: Frederikke I. Marin, Dennis Pultz, Wouter Boomsma
 Categories: q-bio.GN
@@ -1113,6 +1223,7 @@ Abstract: Gene finding is the task of identifying the locations of coding sequen
 <!-- entry:000114:start -->
 ## [000114] paper — 2026-09-17T10:39:41
 arXiv ID: 2602.07139
+Source: external (arXiv), unverified
 Title: ImmCOGNITO: Identity Obfuscation in Millimeter-Wave Radar-Based Gesture Recognition for IoT Environments
 Authors: Ying Liu, Si Zuo, Chao Yang, Yuqing Song, Dariush Salami, Stephan Sigg
 Categories: cs.HC
@@ -1123,6 +1234,7 @@ Abstract: Millimeter-Wave (mmWave) radar enables camera-free gesture recognition
 <!-- entry:000115:start -->
 ## [000115] paper — 2026-09-17T10:40:11
 arXiv ID: 2508.03590
+Source: external (arXiv), unverified
 Title: SolarSeer: Ultrafast and accurate 24-hour solar irradiance forecasts outperforming numerical weather prediction across the USA
 Authors: Mingliang Bai, Zuliang Fang, Shengyu Tao, Siqi Xiang, Jiang Bian, Yanfei Xiang, Pengcheng Zhao, Weixin Jin, Jonathan A. Weyn, Haiyu Dong, Bin Zhang, Hongyu Sun, Kit Thambiratnam, Qi Zhang, Hongbin Sun, Xuan Zhang, Qiuwei Wu
 Categories: cs.LG, cs.CE
@@ -1133,6 +1245,7 @@ Abstract: Accurate 24-hour solar irradiance forecasting is essential for the saf
 <!-- entry:000116:start -->
 ## [000116] paper — 2026-09-17T10:40:14
 arXiv ID: 1503.00014
+Source: external (arXiv), unverified
 Title: Phonon mediated spin relaxation in a moving quantum dot: Doppler shift, Cherenkov radiation, and spin relaxation boom
 Authors: Xinyu Zhao, Peihao Huang, Xuedong Hu
 Categories: cond-mat.mes-hall, quant-ph
@@ -1143,6 +1256,7 @@ Abstract: We study relaxation of a moving spin qubit caused by phonon noise. As 
 <!-- entry:000117:start -->
 ## [000117] paper — 2026-09-17T10:40:17
 arXiv ID: 2404.15719
+Source: external (arXiv), unverified
 Title: HDBN: A Novel Hybrid Dual-branch Network for Robust Skeleton-based Action Recognition
 Authors: Jinfu Liu, Baiqiao Yin, Jiaying Lin, Jiajun Wen, Yue Li, Mengyuan Liu
 Categories: cs.CV, cs.AI
@@ -1153,6 +1267,7 @@ Abstract: Skeleton-based action recognition has gained considerable traction tha
 <!-- entry:000118:start -->
 ## [000118] paper — 2026-09-17T10:40:31
 arXiv ID: 2504.19712
+Source: external (arXiv), unverified
 Title: The effect of ion rotational flow on Hall thruster azimuthal instability via two dimensional PIC simulations
 Authors: Zhijun Zhou, Lihuan Xie, Xin Luo, Yinjian Zhao, Daren Yu
 Categories: physics.plasm-ph
@@ -1163,6 +1278,7 @@ Abstract: Previous experimental studies have found that the neutral gas rotation
 <!-- entry:000119:start -->
 ## [000119] paper — 2026-09-17T10:41:15
 arXiv ID: 2110.10395
+Source: external (arXiv), unverified
 Title: 3DFaceFill: An Analysis-By-Synthesis Approach to Face Completion
 Authors: Rahul Dey, Vishnu Boddeti
 Categories: cs.CV
@@ -1173,6 +1289,7 @@ Abstract: Existing face completion solutions are primarily driven by end-to-end 
 <!-- entry:000120:start -->
 ## [000120] paper — 2026-09-17T10:41:18
 arXiv ID: 1701.07274
+Source: external (arXiv), unverified
 Title: Deep Reinforcement Learning: An Overview
 Authors: Yuxi Li
 Categories: cs.LG
@@ -1183,6 +1300,7 @@ Abstract: We give an overview of recent exciting achievements of deep reinforcem
 <!-- entry:000121:start -->
 ## [000121] paper — 2026-09-17T13:58:31
 arXiv ID: 1808.03570
+Source: external (arXiv), unverified
 Title: Densely Connected Convolutional Networks for Speech Recognition
 Authors: Chia Yu Li, Ngoc Thang Vu
 Categories: cs.CL
@@ -1193,6 +1311,7 @@ Abstract: This paper presents our latest investigation on Densely Connected Conv
 <!-- entry:000122:start -->
 ## [000122] paper — 2026-09-17T13:58:36
 arXiv ID: 2407.08469
+Source: external (arXiv), unverified
 Title: A Comprehensive Convolutional Neural Network Architecture Design using Magnetic Skyrmion and Domain Wall
 Authors: Saumya Gupta, Venkatesh Vadde, Bhaskaran Muralidharan, Abhishek Sharma
 Categories: cond-mat.mes-hall
@@ -1203,6 +1322,7 @@ Abstract: Spintronic-based neuromorphic hardware offers high-density and rapid d
 <!-- entry:000123:start -->
 ## [000123] paper — 2026-09-17T13:58:39
 arXiv ID: 1807.06521
+Source: external (arXiv), unverified
 Title: CBAM: Convolutional Block Attention Module
 Authors: Sanghyun Woo, Jongchan Park, Joon-Young Lee, In So Kweon
 Categories: cs.CV
@@ -1213,6 +1333,7 @@ Abstract: We propose Convolutional Block Attention Module (CBAM), a simple yet e
 <!-- entry:000124:start -->
 ## [000124] paper — 2026-09-17T13:58:43
 arXiv ID: 2308.13343
+Source: external (arXiv), unverified
 Title: Squeeze aggregated excitation network
 Authors: Mahendran N
 Categories: cs.CV, cs.AI
@@ -1223,6 +1344,7 @@ Abstract: Convolutional neural networks have spatial representations which read 
 <!-- entry:000125:start -->
 ## [000125] paper — 2026-09-17T13:58:46
 arXiv ID: 2112.10085
+Source: external (arXiv), unverified
 Title: D-HAN: Dynamic News Recommendation with Hierarchical Attention Network
 Authors: Qinghua Zhao
 Categories: cs.IR, cs.AI
@@ -1233,6 +1355,7 @@ Abstract: News recommendation models often fall short in capturing users' prefer
 <!-- entry:000126:start -->
 ## [000126] paper — 2026-09-17T13:58:48
 arXiv ID: 2410.03805
+Source: external (arXiv), unverified
 Title: Local Attention Mechanism: Boosting the Transformer Architecture for Long-Sequence Time Series Forecasting
 Authors: Ignacio Aguilera-Martos, Andrés Herrera-Poyatos, Julián Luengo, Francisco Herrera
 Categories: cs.LG
@@ -1243,6 +1366,7 @@ Abstract: Transformers have become the leading choice in natural language proces
 <!-- entry:000127:start -->
 ## [000127] paper — 2026-09-17T13:58:51
 arXiv ID: 2112.10108
+Source: external (arXiv), unverified
 Title: Investigation of Densely Connected Convolutional Networks with Domain Adversarial Learning for Noise Robust Speech Recognition
 Authors: Chia Yu Li, Ngoc Thang Vu
 Categories: cs.CL, cs.LG, eess.AS
@@ -1253,6 +1377,7 @@ Abstract: We investigate densely connected convolutional networks (DenseNets) an
 <!-- entry:000128:start -->
 ## [000128] paper — 2026-09-17T13:58:54
 arXiv ID: 2309.03530
+Source: external (arXiv), unverified
 Title: Efficient Single Object Detection on Image Patches with Early Exit Enhanced High-Precision CNNs
 Authors: Arne Moos
 Categories: cs.CV, cs.LG, cs.RO
@@ -1263,6 +1388,7 @@ Abstract: This paper proposes a novel approach for detecting objects using mobil
 <!-- entry:000129:start -->
 ## [000129] paper — 2026-09-17T13:58:58
 arXiv ID: 2202.06673
+Source: external (arXiv), unverified
 Title: Convolutional Neural Network with Convolutional Block Attention Module for Finger Vein Recognition
 Authors: Zhongxia Zhang, Mingwen Wang
 Categories: cs.CV
@@ -1273,6 +1399,7 @@ Abstract: Convolutional neural networks have become a popular research in the fi
 <!-- entry:000130:start -->
 ## [000130] paper — 2026-09-17T13:59:04
 arXiv ID: 2305.00088
+Source: external (arXiv), unverified
 Title: DD-CISENet: Dual-Domain Cross-Iteration Squeeze and Excitation Network for Accelerated MRI Reconstruction
 Authors: Xiongchao Chen, Zhigang Peng, Gerardo Hermosillo Valadez
 Categories: eess.IV, cs.CV
@@ -1283,6 +1410,7 @@ Abstract: Magnetic resonance imaging (MRI) is widely employed for diagnostic tes
 <!-- entry:000131:start -->
 ## [000131] paper — 2026-09-17T13:59:06
 arXiv ID: 1908.06006
+Source: external (arXiv), unverified
 Title: Bidirectional Context-Aware Hierarchical Attention Network for Document Understanding
 Authors: Jean-Baptiste Remy, Antoine Jean-Pierre Tixier, Michalis Vazirgiannis
 Categories: cs.CL, cs.LG
@@ -1293,6 +1421,7 @@ Abstract: The Hierarchical Attention Network (HAN) has made great strides, but i
 <!-- entry:000132:start -->
 ## [000132] paper — 2026-09-17T13:59:11
 arXiv ID: 2407.01424
+Source: external (arXiv), unverified
 Title: A Global-Local Attention Mechanism for Relation Classification
 Authors: Yiping Sun
 Categories: cs.CL, cs.IR
@@ -1303,6 +1432,7 @@ Abstract: Relation classification, a crucial component of relation extraction, i
 <!-- entry:000133:start -->
 ## [000133] paper — 2026-09-17T13:59:13
 arXiv ID: 1810.05932
+Source: external (arXiv), unverified
 Title: Spatial-Temporal Densely Connected Convolutional Networks: An Application to CO2 Leakage Detection
 Authors: Zheng Zhou, Youzuo Lin, Yue Wu, Zan Wang, Robert Dilmore, George Guthrie
 Categories: physics.geo-ph
@@ -1313,6 +1443,7 @@ Abstract: In carbon capture and sequestration, building an effective monitoring 
 <!-- entry:000134:start -->
 ## [000134] paper — 2026-09-17T13:59:17
 arXiv ID: 2505.24595
+Source: external (arXiv), unverified
 Title: BinConv: A Neural Architecture for Ordinal Encoding in Time-Series Forecasting
 Authors: Andrei Chernov, Vitaliy Pozdnyakov, Ilya Makarov
 Categories: cs.LG, cs.AI, stat.ML
@@ -1323,6 +1454,7 @@ Abstract: Recent work in time series forecasting has explored reformulating regr
 <!-- entry:000135:start -->
 ## [000135] paper — 2026-09-17T13:59:26
 arXiv ID: 2012.01900
+Source: external (arXiv), unverified
 Title: Light-field view synthesis using convolutional block attention module
 Authors: M. Shahzeb Khan Gul, Umair Mukati, Michel Bätz, Søren Forchhammer, Joachim Keinert
 Categories: eess.IV
@@ -1333,6 +1465,7 @@ Abstract: Consumer light-field (LF) cameras suffer from a low or limited resolut
 <!-- entry:000136:start -->
 ## [000136] paper — 2026-09-17T13:59:34
 arXiv ID: 2406.09656
+Source: external (arXiv), unverified
 Title: RSEND: Retinex-based Squeeze and Excitation Network with Dark Region Detection for Efficient Low Light Image Enhancement
 Authors: Jingcheng Li, Ye Qiao, Haocheng Xu, Sitao Huang
 Categories: cs.CV, cs.AI, cs.LG, eess.IV
@@ -1343,6 +1476,7 @@ Abstract: Images captured under low-light scenarios often suffer from low qualit
 <!-- entry:000137:start -->
 ## [000137] paper — 2026-09-17T13:59:37
 arXiv ID: 2002.03740
+Source: external (arXiv), unverified
 Title: Convolutional Hierarchical Attention Network for Query-Focused Video Summarization
 Authors: Shuwen Xiao, Zhou Zhao, Zijian Zhang, Xiaohui Yan, Min Yang
 Categories: cs.CV
@@ -1353,6 +1487,7 @@ Abstract: Previous approaches for video summarization mainly concentrate on find
 <!-- entry:000138:start -->
 ## [000138] paper — 2026-09-17T13:59:44
 arXiv ID: 2504.18689
+Source: external (arXiv), unverified
 Title: HierSum: A Global and Local Attention Mechanism for Video Summarization
 Authors: Apoorva Beedu, Irfan Essa
 Categories: cs.CV, cs.AI, cs.LG
@@ -1363,6 +1498,7 @@ Abstract: Video summarization creates an abridged version (i.e., a summary) that
 <!-- entry:000139:start -->
 ## [000139] paper — 2026-09-17T14:12:49
 arXiv ID: 1707.06347
+Source: external (arXiv), unverified
 Title: Proximal Policy Optimization Algorithms
 Authors: John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, Oleg Klimov
 Categories: cs.LG
@@ -1373,6 +1509,7 @@ Abstract: We propose a new family of policy gradient methods for reinforcement l
 <!-- entry:000140:start -->
 ## [000140] paper — 2026-09-17T14:12:52
 arXiv ID: 1706.03741
+Source: external (arXiv), unverified
 Title: Deep reinforcement learning from human preferences
 Authors: Paul Christiano, Jan Leike, Tom B. Brown, Miljan Martic, Shane Legg, Dario Amodei
 Categories: stat.ML, cs.AI, cs.HC, cs.LG
@@ -1383,6 +1520,7 @@ Abstract: For sophisticated reinforcement learning (RL) systems to interact usef
 <!-- entry:000141:start -->
 ## [000141] paper — 2026-09-17T14:13:13
 arXiv ID: 1909.08593
+Source: external (arXiv), unverified
 Title: Fine-Tuning Language Models from Human Preferences
 Authors: Daniel M. Ziegler, Nisan Stiennon, Jeffrey Wu, Tom B. Brown, Alec Radford, Dario Amodei, Paul Christiano, Geoffrey Irving
 Categories: cs.CL, cs.LG, stat.ML
@@ -1393,6 +1531,7 @@ Abstract: Reward learning enables the application of reinforcement learning (RL)
 <!-- entry:000142:start -->
 ## [000142] paper — 2026-09-17T14:13:16
 arXiv ID: 2203.02155
+Source: external (arXiv), unverified
 Title: Training language models to follow instructions with human feedback
 Authors: Long Ouyang, Jeff Wu, Xu Jiang, Diogo Almeida, Carroll L. Wainwright, Pamela Mishkin, Chong Zhang, Sandhini Agarwal, Katarina Slama, Alex Ray, John Schulman, Jacob Hilton, Fraser Kelton, Luke Miller, Maddie Simens, Amanda Askell, Peter Welinder, Paul Christiano, Jan Leike, Ryan Lowe
 Categories: cs.CL, cs.AI, cs.LG
@@ -1403,6 +1542,7 @@ Abstract: Making language models bigger does not inherently make them better at 
 <!-- entry:000143:start -->
 ## [000143] paper — 2026-09-17T14:13:22
 arXiv ID: 2204.05862
+Source: external (arXiv), unverified
 Title: Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback
 Authors: Yuntao Bai, Andy Jones, Kamal Ndousse, Amanda Askell, Anna Chen, Nova DasSarma, Dawn Drain, Stanislav Fort, Deep Ganguli, Tom Henighan, Nicholas Joseph, Saurav Kadavath, Jackson Kernion, Tom Conerly, Sheer El-Showk, Nelson Elhage, Zac Hatfield-Dodds, Danny Hernandez, Tristan Hume, Scott Johnston, Shauna Kravec, Liane Lovitt, Neel Nanda, Catherine Olsson, Dario Amodei, Tom Brown, Jack Clark, Sam McCandlish, Chris Olah, Ben Mann, Jared Kaplan
 Categories: cs.CL, cs.LG
@@ -1413,6 +1553,7 @@ Abstract: We apply preference modeling and reinforcement learning from human fee
 <!-- entry:000144:start -->
 ## [000144] paper — 2026-09-17T14:13:24
 arXiv ID: 2212.08073
+Source: external (arXiv), unverified
 Title: Constitutional AI: Harmlessness from AI Feedback
 Authors: Yuntao Bai, Saurav Kadavath, Sandipan Kundu, Amanda Askell, Jackson Kernion, Andy Jones, Anna Chen, Anna Goldie, Azalia Mirhoseini, Cameron McKinnon, Carol Chen, Catherine Olsson, Christopher Olah, Danny Hernandez, Dawn Drain, Deep Ganguli, Dustin Li, Eli Tran-Johnson, Ethan Perez, Jamie Kerr, Jared Mueller, Jeffrey Ladish, Joshua Landau, Kamal Ndousse, Kamile Lukosuite, Liane Lovitt, Michael Sellitto, Nelson Elhage, Nicholas Schiefer, Noemi Mercado, Nova DasSarma, Robert Lasenby, Robin Larson, Sam Ringer, Scott Johnston, Shauna Kravec, Sheer El Showk, Stanislav Fort, Tamera Lanham, Timothy Telleen-Lawton, Tom Conerly, Tom Henighan, Tristan Hume, Samuel R. Bowman, Zac Hatfield-Dodds, Ben Mann, Dario Amodei, Nicholas Joseph, Sam McCandlish, Tom Brown, Jared Kaplan
 Categories: cs.CL, cs.AI
@@ -1423,6 +1564,7 @@ Abstract: As AI systems become more capable, we would like to enlist their help 
 <!-- entry:000145:start -->
 ## [000145] paper — 2026-09-17T14:13:27
 arXiv ID: 2305.18290
+Source: external (arXiv), unverified
 Title: Direct Preference Optimization: Your Language Model is Secretly a Reward Model
 Authors: Rafael Rafailov, Archit Sharma, Eric Mitchell, Stefano Ermon, Christopher D. Manning, Chelsea Finn
 Categories: cs.LG, cs.AI, cs.CL
@@ -1433,6 +1575,7 @@ Abstract: While large-scale unsupervised language models (LMs) learn broad world
 <!-- entry:000146:start -->
 ## [000146] paper — 2026-09-17T14:14:43
 arXiv ID: 2407.17482
+Source: external (arXiv), unverified
 Title: Reinforcement Learning from Human Feedback: Whose Culture, Whose Values, Whose Perspectives?
 Authors: Kristian González Barman, Simon Lohse, Henk de Regt
 Categories: cs.CY, cs.AI, cs.CL, cs.HC
@@ -1443,6 +1586,7 @@ Abstract: We argue for the epistemic and ethical advantages of pluralism in Rein
 <!-- entry:000147:start -->
 ## [000147] paper — 2026-09-17T14:14:47
 arXiv ID: 2405.17956
+Source: external (arXiv), unverified
 Title: Unified Preference Optimization: Language Model Alignment Beyond the Preference Frontier
 Authors: Anirudhan Badrinath, Prabhat Agarwal, Jiajing Xu
 Categories: cs.AI
@@ -1453,6 +1597,7 @@ Abstract: For aligning large language models (LLMs), prior work has leveraged re
 <!-- entry:000148:start -->
 ## [000148] paper — 2026-09-17T14:14:49
 arXiv ID: 2604.06621
+Source: external (arXiv), unverified
 Title: The Theorems of Dr. David Blackwell and Their Contributions to Artificial Intelligence
 Authors: Napoleon Paxton
 Categories: cs.GL, cs.LG, stat.ML
@@ -1463,6 +1608,7 @@ Abstract: Dr. David Blackwell was a mathematician and statistician of the first 
 <!-- entry:000149:start -->
 ## [000149] paper — 2026-09-17T14:14:55
 arXiv ID: 1807.10299
+Source: external (arXiv), unverified
 Title: Variational Option Discovery Algorithms
 Authors: Joshua Achiam, Harrison Edwards, Dario Amodei, Pieter Abbeel
 Categories: cs.AI
@@ -1473,6 +1619,7 @@ Abstract: We explore methods for option discovery based on variational inference
 <!-- entry:000150:start -->
 ## [000150] paper — 2026-09-17T14:14:59
 arXiv ID: 2009.01325
+Source: external (arXiv), unverified
 Title: Learning to summarize from human feedback
 Authors: Nisan Stiennon, Long Ouyang, Jeff Wu, Daniel M. Ziegler, Ryan Lowe, Chelsea Voss, Alec Radford, Dario Amodei, Paul Christiano
 Categories: cs.CL, cs.AI, cs.LG
@@ -1483,6 +1630,7 @@ Abstract: As language models become more powerful, training and evaluation are i
 <!-- entry:000151:start -->
 ## [000151] paper — 2026-09-17T14:15:04
 arXiv ID: 2005.14165
+Source: external (arXiv), unverified
 Title: Language Models are Few-Shot Learners
 Authors: Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal, Ariel Herbert-Voss, Gretchen Krueger, Tom Henighan, Rewon Child, Aditya Ramesh, Daniel M. Ziegler, Jeffrey Wu, Clemens Winter, Christopher Hesse, Mark Chen, Eric Sigler, Mateusz Litwin, Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec Radford, Ilya Sutskever, Dario Amodei
 Categories: cs.CL
@@ -1493,6 +1641,7 @@ Abstract: Recent work has demonstrated substantial gains on many NLP tasks and b
 <!-- entry:000152:start -->
 ## [000152] paper — 2026-09-17T14:15:23
 arXiv ID: 1710.09767
+Source: external (arXiv), unverified
 Title: Meta Learning Shared Hierarchies
 Authors: Kevin Frans, Jonathan Ho, Xi Chen, Pieter Abbeel, John Schulman
 Categories: cs.LG
@@ -1503,6 +1652,7 @@ Abstract: We develop a metalearning approach for learning hierarchically structu
 <!-- entry:000153:start -->
 ## [000153] paper — 2026-09-17T14:15:26
 arXiv ID: 1704.01444
+Source: external (arXiv), unverified
 Title: Learning to Generate Reviews and Discovering Sentiment
 Authors: Alec Radford, Rafal Jozefowicz, Ilya Sutskever
 Categories: cs.LG, cs.CL, cs.NE
@@ -1513,6 +1663,7 @@ Abstract: We explore the properties of byte-level recurrent language models. Whe
 <!-- entry:000154:start -->
 ## [000154] paper — 2026-09-17T14:15:29
 arXiv ID: 1401.5351
+Source: external (arXiv), unverified
 Title: Ranking Function Synthesis for Linear Lasso Programs
 Authors: Jan Leike
 Categories: cs.LO
@@ -1523,6 +1674,7 @@ Abstract: The scope of this work is the constraint-based synthesis of terminatio
 <!-- entry:000155:start -->
 ## [000155] paper — 2026-09-17T14:15:39
 arXiv ID: 2005.04305
+Source: external (arXiv), unverified
 Title: Measuring the Algorithmic Efficiency of Neural Networks
 Authors: Danny Hernandez, Tom B. Brown
 Categories: cs.LG, cs.CV, stat.ML
@@ -1533,6 +1685,7 @@ Abstract: Three factors drive the advance of AI: algorithmic innovation, data, a
 <!-- entry:000156:start -->
 ## [000156] paper — 2026-09-17T14:15:45
 arXiv ID: 2012.03608
+Source: external (arXiv), unverified
 Title: Gravitational-wave physics with Cosmic Explorer: limits to low-frequency sensitivity
 Authors: Evan D. Hall, Kevin Kuns, Joshua R. Smith, Yuntao Bai, Christopher Wipf, Sebastien Biscans, Rana X Adhikari, Koji Arai, Stefan Ballmer, Lisa Barsotti, Yanbei Chen, Matthew Evans, Peter Fritschel, Jan Harms, Brittany Kamai, Jameson Graef Rollins, David Shoemaker, Bram Slagmolen, Rainer Weiss, Hiro Yamamoto
 Categories: gr-qc, astro-ph.IM
@@ -1543,6 +1696,7 @@ Abstract: Cosmic Explorer (CE) is a next-generation ground-based gravitational-w
 <!-- entry:000157:start -->
 ## [000157] paper — 2026-09-17T14:15:49
 arXiv ID: 2403.10704
+Source: external (arXiv), unverified
 Title: Parameter Efficient Reinforcement Learning from Human Feedback
 Authors: Hakim Sidahmed, Samrat Phatale, Alex Hutcheson, Zhuonan Lin, Zhang Chen, Zac Yu, Jarvis Jin, Simral Chaudhary, Roman Komarytsia, Christiane Ahlheim, Yonghao Zhu, Bowen Li, Saravanan Ganesh, Bill Byrne, Jessica Hoffmann, Hassan Mansoor, Wei Li, Abhinav Rastogi, Lucas Dixon
 Categories: cs.LG, cs.AI, cs.CL
@@ -1553,6 +1707,7 @@ Abstract: While Reinforcement Learning from Human Feedback (RLHF) effectively al
 <!-- entry:000158:start -->
 ## [000158] paper — 2026-09-17T14:16:18
 arXiv ID: 2209.10652
+Source: external (arXiv), unverified
 Title: Toy Models of Superposition
 Authors: Nelson Elhage, Tristan Hume, Catherine Olsson, Nicholas Schiefer, Tom Henighan, Shauna Kravec, Zac Hatfield-Dodds, Robert Lasenby, Dawn Drain, Carol Chen, Roger Grosse, Sam McCandlish, Jared Kaplan, Dario Amodei, Martin Wattenberg, Christopher Olah
 Categories: cs.LG
@@ -1563,6 +1718,7 @@ Abstract: Neural networks often pack many unrelated concepts into a single neuro
 <!-- entry:000159:start -->
 ## [000159] paper — 2026-09-17T14:16:21
 arXiv ID: 1403.5287
+Source: external (arXiv), unverified
 Title: Online Local Learning via Semidefinite Programming
 Authors: Paul Christiano
 Categories: cs.LG
@@ -1573,6 +1729,7 @@ Abstract: In many online learning problems we are interested in predicting local
 <!-- entry:000160:start -->
 ## [000160] paper — 2026-09-17T14:16:24
 arXiv ID: 1907.04534
+Source: external (arXiv), unverified
 Title: The Role of Cooperation in Responsible AI Development
 Authors: Amanda Askell, Miles Brundage, Gillian Hadfield
 Categories: cs.CY, cs.AI
@@ -1583,6 +1740,7 @@ Abstract: In this paper, we argue that competitive pressures could incentivize A
 <!-- entry:000161:start -->
 ## [000161] paper — 2026-09-17T14:16:27
 arXiv ID: 1502.05477
+Source: external (arXiv), unverified
 Title: Trust Region Policy Optimization
 Authors: John Schulman, Sergey Levine, Philipp Moritz, Michael I. Jordan, Pieter Abbeel
 Categories: cs.LG
@@ -1593,6 +1751,7 @@ Abstract: We describe an iterative procedure for optimizing policies, with guara
 <!-- entry:000162:start -->
 ## [000162] paper — 2026-09-17T14:16:35
 arXiv ID: 1511.06434
+Source: external (arXiv), unverified
 Title: Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks
 Authors: Alec Radford, Luke Metz, Soumith Chintala
 Categories: cs.LG, cs.CV
@@ -1603,6 +1762,7 @@ Abstract: In recent years, supervised learning with convolutional networks (CNNs
 <!-- entry:000163:start -->
 ## [000163] paper — 2026-09-17T14:16:38
 arXiv ID: 1405.4413
+Source: external (arXiv), unverified
 Title: Geometric Series as Nontermination Arguments for Linear Lasso Programs
 Authors: Jan Leike, Matthias Heizmann
 Categories: cs.LO
@@ -1613,6 +1773,7 @@ Abstract: We present a new kind of nontermination argument for linear lasso prog
 <!-- entry:000164:start -->
 ## [000164] paper — 2026-09-17T14:16:41
 arXiv ID: 1909.02264
+Source: external (arXiv), unverified
 Title: A phase-sensitive optomechanical amplifier for quantum noise reduction in laser interferometers
 Authors: Yuntao Bai, Gautam Venugopalan, Kevin Kuns, Christopher Wipf, Aaron Markowitz, Andrew R Wade, Yanbei Chen, Rana X Adhikari
 Categories: quant-ph, physics.ins-det
@@ -1623,6 +1784,7 @@ Abstract: The sensitivity of future gravitational wave interferometers is expect
 <!-- entry:000165:start -->
 ## [000165] paper — 2026-09-17T14:16:52
 arXiv ID: 2507.04340
+Source: external (arXiv), unverified
 Title: Interactive Groupwise Comparison for Reinforcement Learning from Human Feedback
 Authors: Jan Kompatscher, Danqing Shi, Giovanna Varni, Tino Weinkauf, Antti Oulasvirta
 Categories: cs.LG, cs.HC
@@ -1633,6 +1795,7 @@ Abstract: Reinforcement learning from human feedback (RLHF) has emerged as a key
 <!-- entry:000166:start -->
 ## [000166] paper — 2026-09-17T14:16:57
 arXiv ID: 2209.07858
+Source: external (arXiv), unverified
 Title: Red Teaming Language Models to Reduce Harms: Methods, Scaling Behaviors, and Lessons Learned
 Authors: Deep Ganguli, Liane Lovitt, Jackson Kernion, Amanda Askell, Yuntao Bai, Saurav Kadavath, Ben Mann, Ethan Perez, Nicholas Schiefer, Kamal Ndousse, Andy Jones, Sam Bowman, Anna Chen, Tom Conerly, Nova DasSarma, Dawn Drain, Nelson Elhage, Sheer El-Showk, Stanislav Fort, Zac Hatfield-Dodds, Tom Henighan, Danny Hernandez, Tristan Hume, Josh Jacobson, Scott Johnston, Shauna Kravec, Catherine Olsson, Sam Ringer, Eli Tran-Johnson, Dario Amodei, Tom Brown, Nicholas Joseph, Sam McCandlish, Chris Olah, Jared Kaplan, Jack Clark
 Categories: cs.CL, cs.AI, cs.CY
@@ -1643,6 +1806,7 @@ Abstract: We describe our early efforts to red team language models in order to 
 <!-- entry:000167:start -->
 ## [000167] paper — 2026-09-17T14:16:59
 arXiv ID: 1603.06265
+Source: external (arXiv), unverified
 Title: Collaborative prediction with expert advice
 Authors: Paul Christiano
 Categories: cs.LG
@@ -1653,6 +1817,7 @@ Abstract: Many practical learning systems aggregate data across many users, whil
 <!-- entry:000168:start -->
 ## [000168] paper — 2026-09-17T14:17:20
 arXiv ID: 1908.09203
+Source: external (arXiv), unverified
 Title: Release Strategies and the Social Impacts of Language Models
 Authors: Irene Solaiman, Miles Brundage, Jack Clark, Amanda Askell, Ariel Herbert-Voss, Jeff Wu, Alec Radford, Gretchen Krueger, Jong Wook Kim, Sarah Kreps, Miles McCain, Alex Newhouse, Jason Blazakis, Kris McGuffie, Jasmine Wang
 Categories: cs.CL, cs.AI, cs.CY
@@ -1663,6 +1828,7 @@ Abstract: Large language models have a range of beneficial uses: they can assist
 <!-- entry:000169:start -->
 ## [000169] paper — 2026-09-17T14:17:23
 arXiv ID: 1704.06440
+Source: external (arXiv), unverified
 Title: Equivalence Between Policy Gradients and Soft Q-Learning
 Authors: John Schulman, Xi Chen, Pieter Abbeel
 Categories: cs.LG
@@ -1673,6 +1839,7 @@ Abstract: Two of the leading approaches for model-free reinforcement learning ar
 <!-- entry:000170:start -->
 ## [000170] paper — 2026-09-17T14:17:26
 arXiv ID: 1602.07905
+Source: external (arXiv), unverified
 Title: Thompson Sampling is Asymptotically Optimal in General Environments
 Authors: Jan Leike, Tor Lattimore, Laurent Orseau, Marcus Hutter
 Categories: cs.LG, cs.AI, stat.ML
@@ -1683,5 +1850,16 @@ Abstract: We discuss a variant of Thompson sampling for nonparametric reinforcem
 <!-- entry:000171:start -->
 ## [000171] paper — 2026-09-21T15:21:48
 arXiv ID: 2405.13956
+Source: external (arXiv), unverified
 Local file: papers/raw/2405.13956.md (full text retrieved)
 <!-- entry:000171:end -->
+<!-- entry:000172:start -->
+## [000172] paper — 2026-09-28T09:53:25
+arXiv ID: 2401.10020
+Source: external (arXiv), unverified
+Title: Self-Rewarding Language Models
+Authors: Weizhe Yuan, Richard Yuanzhe Pang, Kyunghyun Cho, Xian Li, Sainbayar Sukhbaatar, Jing Xu, Jason Weston
+Categories: cs.CL, cs.AI
+Published: 2024-01-18T14:43:47Z
+Abstract: We posit that to achieve superhuman agents, future models require superhuman feedback in order to provide an adequate training signal. Current approaches commonly train reward models from human preferences, which may then be bottlenecked by human performance level, and secondly these separate frozen reward models cannot then learn to improve during LLM training. In this work, we study Self-Rewarding Language Models, where the language model itself is used via LLM-as-a-Judge prompting to provide its own rewards during training. We show that during Iterative DPO training that not only does instruction following ability improve, but also the ability to provide high-quality rewards to itself. Fine-tuning Llama 2 70B on three iterations of our approach yields a model that outperforms many existing systems on the AlpacaEval 2.0 leaderboard, including Claude 2, Gemini Pro, and GPT-4 0613. While there is much left still to explore, this work opens the door to the possibility of models that can continually improve in both axes.
+<!-- entry:000172:end -->

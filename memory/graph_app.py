@@ -61,7 +61,27 @@ graph_data = {
     ],
 }
 
-graph_json = json.dumps(graph_data)
+# Labels are paper titles, author names and keywords — text a third party controls — and this
+# JSON is pasted verbatim inside a <script> block below. json.dumps doesn't escape "<", so a
+# title containing "</script><script>..." ended the block early and ran as code (verified live:
+# it executed on page load, no click, in an iframe that allows scripts with this app's origin).
+# < / > / & are the same characters as far as JSON and JavaScript are concerned,
+# but the HTML parser never sees a tag; U+2028/2029 are line terminators in older JS engines.
+def _json_for_script_tag(data) -> str:
+    """JSON that is safe to paste inside an inline <script> block (see the comment above).
+    Kept as a plain function so tests/test_graph_app_escaping.py can extract and test it
+    without running this Streamlit script."""
+    return (
+        json.dumps(data)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+        .replace(" ", "\\u2028")
+        .replace(" ", "\\u2029")
+    )
+
+
+graph_json = _json_for_script_tag(graph_data)
 
 html = f"""
 <div id="graph-container" style="position:relative; width:100%; height:800px;
@@ -108,6 +128,10 @@ html = f"""
     return n;
   }}
 
+  // 3d-force-graph renders nodeLabel as HTML, and the info box below is built with innerHTML —
+  // both take node names straight from paper metadata, so they must be escaped.
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
   window._debugGraph = null;
   // preserveDrawingBuffer: without it, the WebGL context clears its drawing
   // buffer right after each render, so canvas.toDataURL()/drawImage() called
@@ -118,7 +142,7 @@ html = f"""
     .graphData(rawData)
     .backgroundColor("#0b0e14")
     .showNavInfo(false)
-    .nodeLabel(n => `${{n.name}} (${{n.type}})`)
+    .nodeLabel(n => `${{esc(n.name)}} (${{esc(n.type)}})`)
     .nodeColor(n => colorByType[n.type] || "#999999")
     .nodeVal(n => 1 + Math.min(10, degreeOf(n.id, rawData.links)))
     .nodeResolution(12)
@@ -139,7 +163,7 @@ html = f"""
         900
       );
       infoBox.style.display = 'block';
-      infoBox.innerHTML = `<b>${{node.name}}</b><br>type: ${{node.type}}<br>connections: ${{degreeOf(node.id, rawData.links)}}`;
+      infoBox.innerHTML = `<b>${{esc(node.name)}}</b><br>type: ${{esc(node.type)}}<br>connections: ${{degreeOf(node.id, rawData.links)}}`;
     }});
 
   // The library's own zoomToFit() was tried here first and, with a few

@@ -1,0 +1,9 @@
+# Applies to `streamlit run ...` started from the repo root (the README's commands, and the
+# companion apps core/companion_apps.py launches).
+#
+# Streamlit's default is to listen on every network interface. The observability dashboard
+# (port 8020) and the knowledge-graph app (port 8030) are meant for the person at this
+# machine only — they show research topics, paper/author names and usage metrics — so bind
+# them to loopback. See SECURITY_REVIEW.md / the README Security section.
+[server]
+address = "127.0.0.1"

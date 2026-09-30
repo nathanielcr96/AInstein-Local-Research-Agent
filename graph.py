@@ -22,7 +22,7 @@ from memory.memory_tools import MEMORY_FILE, _list_memory_entries, update_memory
 from memory.memory_rag import make_search_memory_tool
 from memory.paper_rag import make_search_paper_content_tool
 from memory.graph_tools import GRAPH_TOOLS
-from core.middleware import ExcludeToolsMiddleware, EnsureFinalAnswerMiddleware, PaperMemoryMiddleware, ArxivTimeoutMiddleware, ForcePaperAnalysisSkillMiddleware, ForceGraphSkillMiddleware, ForceChallengeSkillMiddleware, ForceCompareSkillMiddleware
+from core.middleware import ExcludeToolsMiddleware, EnsureFinalAnswerMiddleware, PaperMemoryMiddleware, ArxivTimeoutMiddleware, ForcePaperAnalysisSkillMiddleware, ForceGraphSkillMiddleware, ForceChallengeSkillMiddleware, ForceCompareSkillMiddleware, UntrustedContentMiddleware, OutputImageGuardrailMiddleware
 from prompts.research_agent_prompt import SYSTEM_PROMPT
 from prompts.skills_prompt import CUSTOM_SKILLS_SYSTEM_PROMPT
 from prompts.memory_prompt import MEMORY_PROMPT_TEMPLATE, MEMORY_SEARCH_PROMPT
@@ -82,7 +82,7 @@ async def get_checkpointer() -> AsyncSqliteSaver:
     return _checkpointer
 
 # arXiv MCP server (blazickjp/arxiv-mcp-server), not a pip dependency —
-# launched on demand via `uv tool run --from "arxiv-mcp-server[pdf]" ...`,
+# launched on demand via `uv tool run --from "arxiv-mcp-server[pdf]==<version>" ...`,
 # which lets uv resolve/build its isolated environment itself, with no
 # separate manual install step required. The `[pdf]` extra is pinned
 # explicitly in the run command (not left to a one-off `uv tool install`
@@ -91,6 +91,18 @@ async def get_checkpointer() -> AsyncSqliteSaver:
 # without it, that fails with "PDF conversion requires the pdf extra",
 # verified to happen even when the extra was previously installed
 # separately, since `uv tool run` doesn't reliably reuse that install.
+#
+# Version pinned (SECURITY_IMPLEMENTATION_PLAN.md step 3.1, SECURITY_REVIEW.md finding
+# #5): this is a third-party dependency, not from Anthropic/LangChain, run as a local
+# subprocess with the user's own permissions and no sandbox — `--from` without a pin
+# resolves whatever's newest on PyPI at run time, so a future compromised or malicious
+# release would run unreviewed. ARXIV_MCP_SERVER_VERSION below is the exact version
+# verified to work with this codebase (confirmed live: `uv tool run --from
+# "arxiv-mcp-server[pdf]" python -c "import importlib.metadata as m;
+# print(m.version('arxiv-mcp-server'))"` resolved 0.7.2, also PyPI's latest at the time
+# of pinning). Bump it deliberately — re-verify the arXiv tools still work — rather than
+# letting it drift silently.
+ARXIV_MCP_SERVER_VERSION = "0.7.2"
 # Runs as a local subprocess over stdio — no API keys, the arXiv API is
 # public. We only actually use search_papers, get_abstract, read_paper,
 # list_papers, citation_graph, watch_topic/check_alerts from it —
@@ -129,7 +141,7 @@ async def get_arxiv_tools() -> list:
                 "command": "uv",
                 "args": [
                     "tool", "run",
-                    "--from", "arxiv-mcp-server[pdf]", "arxiv-mcp-server",
+                    "--from", f"arxiv-mcp-server[pdf]=={ARXIV_MCP_SERVER_VERSION}", "arxiv-mcp-server",
                     "--storage-path", str(PAPERS_STORAGE_PATH)
                 ],
                 "transport": "stdio"
@@ -386,6 +398,10 @@ async def build_agent(
         backend = backend,
         checkpointer = checkpointer,
         middleware = [
+            # Deliberately FIRST — outermost in wrap_model_call composition, so it's the
+            # last thing to touch a response before it leaves this whole stack (see its
+            # own docstring in core/middleware.py for why that matters here specifically).
+            OutputImageGuardrailMiddleware(),
             SkillsMiddleware(
                 backend=backend,
                 sources=SKILLS_SOURCES,
@@ -405,6 +421,19 @@ async def build_agent(
             ToolCallLimitMiddleware(run_limit=MAX_TOOL_CALLS_PER_MESSAGE, exit_behavior="continue"),
             ExcludeToolsMiddleware(excluded=HIDDEN_TOOLS),
             EnsureFinalAnswerMiddleware(max_retries=2),
+            # Placed BEFORE PaperMemoryMiddleware deliberately, not just appended at the
+            # end: LangChain composes wrap_tool_call middleware with the first-listed one
+            # outermost (see langchain.agents.factory._chain_tool_call_wrappers — "Response
+            # flows: tool -> retry -> cache -> auth" for middleware=[auth, cache, retry]).
+            # PaperMemoryMiddleware needs to see the tool's raw, unwrapped JSON result
+            # (it does its own json.loads(text) to pull out title/abstract/paper_id) before
+            # this middleware wraps that same text with _CONTENT_WARNING/_FOOTER — so this
+            # has to sit closer to the model (earlier in this list) than PaperMemoryMiddleware,
+            # which sits closer to the real tool (later in this list). SECURITY_IMPLEMENTATION_PLAN.md
+            # step 1.1: _UNTRUSTED_CONTENT_TOOLS is still empty, so this is currently a no-op
+            # in the running agent — wired in now, in the position that will matter, so step
+            # 1.2 only has to populate the set rather than also re-deriving this ordering.
+            UntrustedContentMiddleware(),
             PaperMemoryMiddleware(),
             ArxivTimeoutMiddleware()
         ],

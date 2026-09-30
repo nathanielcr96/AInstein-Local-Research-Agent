@@ -67,7 +67,7 @@ def _list_memory_entries(text: str) -> list[dict]:
 # first ":" per line). Shared by PaperMemoryMiddleware (core/middleware.py,
 # writes these entries) and the paper-content RAG (memory/paper_rag.py,
 # reads Title/Authors back out for citation headers).
-_PAPER_FIELD_ORDER = ["arXiv ID", "Title", "Authors", "Categories", "Published", "Local file", "Abstract"]
+_PAPER_FIELD_ORDER = ["arXiv ID", "Source", "Title", "Authors", "Categories", "Published", "Local file", "Abstract"]
 
 
 def _parse_kv_block(content: str) -> dict[str, str]:

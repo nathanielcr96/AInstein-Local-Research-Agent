@@ -59,6 +59,13 @@ def launch_companion_apps() -> None:
                 [
                     sys.executable, "-m", "streamlit", "run", app["script"],
                     "--server.port", str(app["port"]),
+                    # Streamlit listens on ALL interfaces unless told otherwise (verified:
+                    # netstat showed 0.0.0.0:8020/8030, and the health endpoint answered on
+                    # the machine's Wi-Fi and Hyper-V addresses). These read-only apps show
+                    # research topics and usage metrics — loopback only. Also pinned in
+                    # .streamlit/config.toml so the manual `streamlit run` commands in the
+                    # README get it too; passing it here as well doesn't depend on the cwd.
+                    "--server.address", "127.0.0.1",
                     "--server.headless", "true",
                 ],
                 cwd=str(PROJECT_DIR),

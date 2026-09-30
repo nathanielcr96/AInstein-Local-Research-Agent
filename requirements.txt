@@ -1,3 +1,6 @@
+# Top-level dependencies only, unpinned on purpose (what the project imports).
+# For a reproducible, hash-verified install use requirements.lock.txt:
+#   uv pip install --require-hashes -r requirements.lock.txt
 chainlit
 langgraph
 langchain

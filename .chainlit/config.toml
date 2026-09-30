@@ -20,7 +20,13 @@ persist_user_env = false
 mask_user_env = false
 
 # Authorized origins
-allow_origins = ["*"]
+# Only this app's own address, on the two ports it is normally run on (`chainlit run app.py`
+# defaults to 8000; .claude/launch.json uses 8010). With ["*"], Chainlit reflects ANY origin
+# and also sends `access-control-allow-credentials: true` (verified with curl and a page on
+# another origin) — the login here is passwordless (core/chainlit_data.py returns the same
+# local user for every request), so an open CORS policy is the only thing that could stand
+# between another website and this agent. Running on any other port? add it here.
+allow_origins = ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:8010", "http://127.0.0.1:8010"]
 
 [features]
 # Process and display HTML in messages. This can be a security risk (see https://stackoverflow.com/questions/19603097/why-is-it-dangerous-to-render-user-generated-html-or-javascript)
@@ -30,7 +36,11 @@ unsafe_allow_html = false
 latex = false
 
 # Enable rendering of user messages markdown
-user_message_markdown = true
+# Kept OFF on purpose (SECURITY_REVIEW.md / README Security): with it on, a markdown image
+# in the user's own message — e.g. pasted paper text — loads by itself the moment the
+# bubble renders, before the model has answered. Verified live: `![x](http://127.0.0.1:8999/..)`
+# in a message produced a real outbound request, with the <img> inside the user_message step.
+user_message_markdown = false
 
 # Autoscroll new user messages at the top of the window
 user_message_autoscroll = true
