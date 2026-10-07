@@ -28,7 +28,7 @@ convencerte de que hace falta empezar desde cero.
 | 9 | Paneles Streamlit (8020/8030) escuchando en todas las interfaces; Chainlit con CORS abierto (`allow_origins = ["*"]`) | **Media — CONFIRMADOS en vivo; cerrados y verificados** | `core/companion_apps.py`, `.chainlit/config.toml` |
 | 10 | XSS almacenado en la app del grafo: un título de paper ejecuta JavaScript al cargar la página | **Alta — CONFIRMADO en vivo; cerrado y verificado** | `memory/graph_app.py` |
 | 11 | Dependencias sin fijar ni auditar (28 paquetes de primer nivel, ~220 instalados) | **Media — auditado: 22 avisos en 7 paquetes; 6 actualizados, 1 aceptado** | `requirements.txt`, `requirements.lock.txt` |
-| 12 | Una inyección puede hacer que el modelo escriba en memoria (`update_memory`/`edit_memory`) | **Media — exposición estructural real, ataque NO demostrado (0/4 pruebas válidas, 2 no concluyentes)** | `memory/memory_tools.py`, `graph.py` |
+| 12 | Una inyección puede hacer que el modelo escriba en memoria (`update_memory`/`edit_memory`) | **Media — ataque NO demostrado (0/4 pruebas válidas); guardia determinista añadido: sin escrituras del modelo tras leer texto externo** | `core/middleware.py` (`MemoryWriteGuardMiddleware`), `core/memory_proposals.py` |
 | 13 | Datos personales en los ficheros de datos que se publican en el repo | **Baja — auditado: 0 secretos; decisión del propietario de mantenerlos** | `checkpoints.sqlite`, `chainlit_data.sqlite`, `long_term.md`, `conversation_history/`… |
 | 14 | Las defensas neutralizan la inyección en silencio: nadie avisa al usuario | **Baja — aviso en la interfaz añadido (heurístico)** | `core/injection_detector.py`, `app.py` |
 
@@ -285,7 +285,7 @@ mantener uno aparte añadía complejidad sin un hallazgo concreto que lo justifi
 
 Sigue siendo cierto que una auditoría solo conoce avisos ya publicados: hay que repetirla.
 
-## 12. Escrituras en memoria provocadas por una inyección — Media, exposición estructural; ataque no demostrado
+## 12. Escrituras en memoria provocadas por una inyección — Media, ataque no demostrado; guardia determinista añadido
 
 **La exposición.** El modelo puede llamar directamente a `update_memory` y `edit_memory`
 (incluido `edit_memory(delete=True)`), sin ningún vínculo con lo que pidió el usuario. Lo que
@@ -309,7 +309,7 @@ borrada distinta de la del propio paper):
 
 Es decir, **0 de 4 pruebas válidas tuvo éxito**. Eso es evidencia sobre estas dos formulaciones
 y estos tres modelos, no una garantía: una orden más insistente o con otro formato podría
-funcionar, y no se probó ningún modelo mayor. No se implementó ningún guardia, porque no hay un
+funcionar, y no se probó ningún modelo mayor. En ese momento no se implementó ningún guardia, porque no había un
 ataque demostrado que lo justifique, y bloquear escrituras rompería el flujo legítimo en el que
 el agente enriquece la entrada de un paper tras leerlo (`ARXIV_PROMPT` se lo pide).
 
@@ -320,12 +320,41 @@ modelo no llegó a leer el paper; y `tests/test_security_harness.py`, porque el 
 equivocó en su primera ejecución (comparó una copia CRLF de `long_term.md` con una lectura
 normalizada y marcó las 172 entradas existentes como escrituras del modelo).
 
-**Si esto cambia**, el diseño previsto es un guardia determinista en un middleware de
-`wrap_tool_call`: en un turno que ya leyó contenido externo (algún resultado de las
-herramientas envueltas) y donde el mensaje del usuario no pide guardar nada, rechazar
-`update_memory`, cualquier `edit_memory` que no sea sobre una entrada de paper (que debe seguir
-siendo de categoría `paper` y conservar `Source: external`) y todo `delete=True`; y no permitir
-`preference` en un turno así aunque el usuario pida guardar algo.
+**Actualización — guardia determinista (paso 5.6).** Aunque el ataque no se demostró, la exposición
+era estructural, y el propietario prefirió una regla que no dependa de que el modelo se deje engañar.
+`MemoryWriteGuardMiddleware` (`core/middleware.py`) rechaza `update_memory` y `edit_memory` (incluido
+`delete=True`) en cualquier conversación cuyo historial ya contenga el resultado de una herramienta
+con texto externo: las 8 de contenido no fiable, las 4 del grafo, o un `search_memory` que devolvió
+una entrada `Source: external`. No juzga si el texto «parece» hostil, así que no hay nada que
+parafrasear. Cuenta todo el historial y no solo el turno, porque con «Memory» activada un paper
+leído en el turno 1 sigue en el contexto del turno 5.
+*Verificado:* 62 comprobaciones sin Ollama, entre ellas un bucle de agente real de LangChain con un
+modelo guionizado que ignora todos los avisos (las herramientas stub registran que nunca se
+ejecutaron: en el mismo turno, en un turno posterior, y sin afectar a otra conversación); y en vivo
+con `qwen3.5:4b`, que intentó guardar tras leer un paper → bloqueado, `logger.warning` y aviso en el
+chat.
+*Fallo propio corregido en esa prueba:* el bloqueo funcionaba pero el aviso no aparecía. Una llamada
+bloqueada no ejecuta la herramienta y por eso no genera evento de fin de herramienta, y mi código
+colgaba de ese evento; ahora el guardia deja un registro que `app.py` recoge al terminar el turno.
+Además `MEMORY_PROMPT`, `ARXIV_PROMPT` y la skill `memory-management` dejaron de pedir al modelo que
+enriquezca la entrada de un paper; con esa información, `qwen3.5:4b` le dijo al usuario que no había
+podido guardar en esa conversación, en lugar de reintentar o buscar otro camino.
+*Coste:* el modelo ya no puede añadir sus hallazgos a la entrada de un paper, y tras leer un paper en
+una conversación tampoco guarda preferencias (hay que decirlo en una conversación nueva o usar las
+sugerencias del paso 5.7). Las entradas automáticas de papers no se ven afectadas:
+`PaperMemoryMiddleware` escribe con `.func`, no con una llamada a herramienta, y un test lo fija.
+*Sigue abierto:* el guardia mira los resultados de herramientas del historial; no se comprobó si la
+auto-resumización puede eliminarlos; y en una conversación que no leyó nada externo el modelo sigue
+escribiendo memoria por su cuenta, sin confirmación.
+
+**Sugerencias con confirmación (paso 5.7).** Para lo que el usuario dice con sus propias palabras,
+`core/memory_proposals.py` ofrece guardarlo con un clic. Reglas de código primero (longitud, sin
+enlaces ni marcado, sin frases que marque el detector de inyección), después el modelo de decisión
+`nimble`, que solo elige entre respuestas cerradas: primero veta lo que parezca dirigido a sistemas
+de IA (probabilidad ≥ 0,9) y después lo etiqueta. Lo que se guarda es el mensaje del usuario palabra
+por palabra, nunca salida del modelo, y solo tras un clic. Está afinado para callar antes que
+proponer, a costa de vetar en torno a un tercio de las preferencias legítimas (una preferencia es
+textualmente una instrucción a un asistente). Detalle de la medición en el plan, paso 5.7.
 
 ## 13. Datos personales en los ficheros que se publican — Baja, auditado
 
@@ -388,6 +417,14 @@ for LLM prompting") se corrigieron. `tests/test_injection_detector.py` fija ese 
 **Límites:** es un olfato, no una barrera; se evita parafraseando, en otros idiomas o codificando;
 solo mira resultados de las herramientas de la lista de contenido no confiable; y un paper que lo
 esquive sigue quedando contenido por las defensas que no dependen de reconocer el texto.
+*Complemento (paso 5.8):* `core/output_check.py` mira además la **respuesta** que sale: tras un turno
+que leyó texto externo, `nimble` juzga si la respuesta empuja al usuario hacia algo que no pidió
+(llamar, visitar, ejecutar, dar credenciales, un rol nuevo, una entrada de memoria no pedida, una
+recomendación o una imagen que filtra datos) y, si es así, avisa. Detecta el efecto, no la frase, así
+que no depende de que el texto del paper esté redactado de una forma reconocible. Medido en 77
+respuestas escritas por el asistente: 30 de 30 detectadas, 2 falsas alarmas de 47. Solo avisa; no ve
+una respuesta desviada que parece normal, y solo se ejecuta en el turno que leyó texto externo.
+*Segunda opinión (paso 5.10):* `core/external_check.py` ataca el límite «se evita parafraseando»: tras un turno que leyó texto externo, `nimble` lee hasta 6 pasajes que el detector de frases dejó pasar y dice si alguno da órdenes a la IA. Con pasajes escritos por el asistente, el detector de frases cazó 3 de 26 hostiles y `nimble` (0,7) 19, entre ellas 14 de 17 paráfrasis; en 260 trozos reales marcó 4 (1,5 %), ninguno una orden. Solo avisa; no se usa la etiqueta «es un paper sobre ataques» para suavizar nada, porque una orden disfrazada de cita salió con esa etiqueta.
 
 ---
 

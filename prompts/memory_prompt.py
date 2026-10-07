@@ -25,7 +25,12 @@ To persist new knowledge:
 
 You do not have a generic file-writing tool: `update_memory` and
 `edit_memory` are the only way to persist long-term memory, and they only
-ever touch your own memory file."""
+ever touch your own memory file.
+
+Both are blocked in any conversation that has already read text from outside
+(papers, search results, graph labels): the call comes back as an error and
+nothing is saved. When that happens, don't retry — tell the user, and let
+them start a new conversation."""
 
 # Appended to MEMORY_PROMPT_TEMPLATE only when search_memory is actually
 # available (embedding_provider + embedding_model configured).

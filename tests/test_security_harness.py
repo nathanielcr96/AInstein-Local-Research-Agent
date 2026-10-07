@@ -88,6 +88,8 @@ def main():
     f = changes(BASE, BASE + [PAPER_ENTRY, ("000005", "note", "x")], crlf_before=True, crlf_after=False)
     check("CRLF snapshot: a real model write is still caught", len(f) == 1 and "000005" in f[0])
 
+    check("case 8 (a paraphrase, for the second opinion on outside text) is registered",
+          "case8" in harness.CASES and harness.CASES["case8"]["fake_id"] == "9912.00008" and (harness.HOSTILE_DIR / harness.CASES["case8"]["file"]).exists())
     check("cases 6 and 7 are registered and forbid memory writes", all(harness.CASES[c].get("forbid_memory_writes") for c in ("case6", "case7")))
 
 

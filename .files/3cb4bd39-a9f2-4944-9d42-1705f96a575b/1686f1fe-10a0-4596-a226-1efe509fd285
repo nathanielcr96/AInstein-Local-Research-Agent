@@ -1,0 +1,1 @@
+{"columns":["Metric","Value"],"index":[0,1,2,3,4,5,6,7],"data":[["LLM Calls",2.0],["Tool Calls",1.0],["Input Tokens",38836.0],["Output Tokens",224.0],["Total Tokens",39060.0],["LLM Time (s)",191.17],["Tool Time (s)",0.499],["Execution Time (s)",205.68]]}

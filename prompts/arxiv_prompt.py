@@ -78,11 +78,12 @@ citation lookup failed, don't hand back a relabeled keyword search instead.
 Every time you call `get_abstract`, `download_paper`, or `read_paper` on a
 paper, its id/title/authors/abstract/local file path are saved to your
 long-term memory automatically — you don't need to call `update_memory`
-yourself just to record that you looked at it. If, after reading it, you
-find a key finding worth remembering beyond the abstract (e.g. a specific
-result, number, or conclusion relevant to the user's research), use
-`edit_memory` on that same entry (find its id in your memory index) to add
-your own synthesis, instead of creating a separate duplicate entry."""
+yourself just to record that you looked at it. Do NOT try to add your own
+notes or findings to a paper's entry afterwards: once a conversation has
+read paper text or search results, `update_memory` and `edit_memory` are
+blocked in it (the text you just read could be steering that call). If a
+finding is worth keeping, say it in your answer — the user decides what to
+save."""
 
 # Appended to ARXIV_PROMPT only when a vision-capable Ollama model was
 # auto-detected for this session (see graph.py) — the tool itself is only

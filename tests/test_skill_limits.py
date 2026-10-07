@@ -33,21 +33,65 @@ def check(name, cond, detail=""):
 
 
 # ---------------------------------------------------------------- trigger phrases
+# Triggers are English only (AInstein is used in English): the Spanish phrasings were removed from the
+# rules, so the cases below are English, and a Spanish message is checked NOT to match (see the end).
 TRIGGER_CASES = [
     # (text, challenge, compare, graph)
-    ("Me inclino a pensar que la atención hace obsoletas las RNN. Busca evidencia en contra.", 1, 0, 0),
-    ("Hazme de abogado del diablo con mi conclusión sobre DPO", 1, 0, 0),
+    ("I lean toward thinking attention makes RNNs obsolete. Find evidence against that.", 1, 0, 0),
     ("Play devil's advocate on my conclusion that RLHF is unnecessary", 1, 0, 0),
-    ("¿Qué podría estar mal en esta conclusión?", 1, 0, 0),
-    ("¿Se contradicen 1706.03762 y 1707.06347?", 0, 1, 0),
+    ("What could be wrong with this conclusion?", 1, 0, 0),
+    ("Stress-test my view that attention is all you need.", 1, 0, 0),
+    ("Find counterarguments to my claim that quantization never hurts accuracy.", 1, 0, 0),
+    ("What contradicts my belief that bigger batches always help?", 1, 0, 0),
+    ("Do 1706.03762 and 1707.06347 contradict each other?", 0, 1, 0),
     ("Do these two papers disagree about whether RL is needed?", 0, 1, 0),
-    ("Compara estos dos papers: DPO e InstructGPT", 0, 1, 0),
+    ("Compare these two papers: DPO and InstructGPT", 0, 1, 0),
     ("compare 2305.18290 and 2203.02155", 0, 1, 0),
-    ("Usa el grafo para decirme quien escribio Attention Is All You Need", 0, 0, 1),
-    ("Resumen rapido de Attention Is All You Need", 0, 0, 0),
-    ("Compara los precios de las GPUs", 0, 0, 0),
-    ("Explícame cómo funciona LoRA", 0, 0, 0),
-    ("¿Qué hay en contra de subir el learning rate?", 0, 0, 0),
+    ("Are the results of 2305.18290 and 2203.02155 comparable?", 0, 1, 0),   # a dot inside an arXiv id is not a sentence end
+    ("How do these two papers differ in their conclusions?", 0, 1, 0),
+    ("Use the knowledge graph to tell me who wrote Attention Is All You Need", 0, 0, 1),
+    ("Show me the co-authors of Ashish Vaswani.", 0, 0, 1),
+    ("Which authors appear in more than one of the papers I've saved?", 0, 0, 1),
+    ("What topics are connected to attention in my graph?", 0, 0, 1),
+    # not triggers (traps)
+    ("Quick summary of Attention Is All You Need", 0, 0, 0),
+    ("Compare the prices of the GPUs", 0, 0, 0),
+    ("Explain how LoRA works", 0, 0, 0),
+    ("What are the arguments against raising the learning rate?", 0, 0, 0),
+    ("What is the evidence that dropout helps?", 0, 0, 0),
+    ("What contradicts that?", 1, 0, 0),                                   # a request for counter-evidence (challenge), NOT a comparison of two papers
+    ("Some people say contradictory things about this.", 0, 0, 0),         # a bare 'contradict' no longer loads compare-papers
+    ("Download both 1706.03762 and 1810.04805.", 0, 0, 0),                 # two ids, no comparison: compare would block download_paper
+    ("Show me the citation graph of QLoRA.", 0, 0, 0),                     # the citation_graph tool, not the knowledge graph
+    ("Summarize the paper on knowledge graph embeddings by Bordes.", 0, 0, 0),
+    ("Tell me about graph neural networks.", 0, 0, 0),
+    ("I have a collaborative filtering problem.", 0, 0, 0),
+    # second round (phrasings a decision model recognised and the first rules missed) ...
+    ("Which researchers appear in several of my saved papers?", 0, 0, 1),
+    ("List the most connected authors.", 0, 0, 1),
+    ("Find authors who worked together on more than one paper.", 0, 0, 1),
+    ("Has Geoffrey Hinton written anything with Yann LeCun that I have saved?", 0, 0, 1),
+    ("I believe RLHF is overrated. Argue against me.", 1, 0, 0),
+    ("Can you tear apart my claim that LoRA never loses accuracy?", 1, 0, 0),
+    ("What's the strongest case against my conclusion that PPO is obsolete?", 1, 0, 0),
+    ("Where might I be wrong in thinking that BERT is dead?", 1, 0, 0),
+    ("How do 2305.18290 and 2310.12036 differ in their assumptions?", 0, 1, 0),
+    ("Do these two studies reach the same conclusion?", 0, 1, 0),
+    ("Which of these two papers is right?", 0, 1, 0),
+    # ... and the precision fixes: generic uses of the same words that must NOT load a skill
+    ("What is a knowledge graph?", 0, 0, 0),
+    ("Which authors should I follow on Twitter for ML news?", 0, 0, 0),
+    ("How many co-authors does a typical ML paper have?", 0, 0, 0),
+    ("Show the co-author order convention in physics papers.", 0, 0, 0),
+    ("What does the graph in Figure 3 show?", 0, 0, 0),
+    ("I think my model is overfitting. What could be wrong with my training code?", 0, 0, 0),   # debugging, not a conclusion to challenge
+    ("Show me the arguments against deep learning for tabular data.", 0, 0, 0),                  # general information (a decision model took this for challenge at 0.81)
+    ("How do transformers differ from RNNs?", 0, 0, 0),
+    ("Do these two optimizers behave the same way?", 0, 0, 0),
+    # Spanish phrasings no longer trigger anything
+    ("Busca evidencia en contra de mi conclusión", 0, 0, 0),
+    ("¿Se contradicen estos dos papers?", 0, 0, 0),
+    ("Usa el grafo para decirme quién escribió Attention Is All You Need", 0, 0, 0),
 ]
 for text, c, p, g in TRIGGER_CASES:
     got = (
@@ -56,6 +100,56 @@ for text, c, p, g in TRIGGER_CASES:
         int(bool(mw._GRAPH_TRIGGER_RE.search(text))),
     )
     check(f"disparador {(c, p, g)}: {text[:60]}", got == (c, p, g), str(got))
+
+# paper-analysis: forced on the literal words AND on the phrases the skill's own description lists
+ANALYSIS_CASES = [
+    ("Give me an extended analysis of arXiv 2305.14314", True),
+    ("Analyze this paper for me: 1706.03762", True),
+    ("Summarize arXiv 1706.03762 in one paragraph.", True),
+    ("can u summarise the mamba paper?", True),
+    ("Explain the paper 'Attention Is All You Need' to me.", True),
+    ("Give me the TL;DR of the QLoRA paper.", True),
+    ("tldr of 2305.14314", True),
+    ("Is 2203.02155 worth reading?", True),
+    ("What's your take on the DPO paper?", True),
+    ("What does arXiv 2305.18290 actually say?", True),
+    ("Break down the main contributions of this paper.", True),
+    ("Walk me through the LoRA paper step by step.", True),
+    ("I need a deep dive on the FlashAttention paper.", True),
+    ("A standard summary of 1810.04805, please.", True),
+    # not triggers: no paper, or a narrow factual question the skill excludes
+    ("Summarize our conversation so far.", False),
+    ("Explain how self-attention works.", False),
+    ("Review my Python code for bugs.", False),
+    ("What learning rate do they use in section 4?", False),
+    ("How many parameters does the largest model in that paper have?", False),
+    ("What does the paper say about rank?", False),                        # 'actually/really' is required, otherwise it is a narrow question
+    ("What is the standard deviation of the reported accuracies?", False),
+    ("Find me three recent papers about diffusion models.", False),
+    ("Download arXiv 1706.03762.", False),
+    ("What is the best way to write a literature review?", False),
+    # second round: recognised by a decision model, missed by the first rules
+    ("I'd like an overview of 'Attention Is All You Need' - what are its main ideas?", True),
+    ("What are the key takeaways from arXiv 2106.09685?", True),
+    ("What's the gist of 2307.08691?", True),
+    ("Critique the QLoRA paper's experimental design.", True),
+    ("Give me your honest opinion of the DPO paper.", True),
+    ("Should I bother reading the FlashAttention paper?", True),
+    ("I only have five minutes: is the RWKV paper any good?", True),
+    ("Quick take on the Chinchilla paper?", True),
+    ("Please review the paper on mixture-of-experts and tell me if the claims hold up.", True),
+    ("Can you review 2205.14135 and tell me what is novel about it?", True),
+    # precision: 'analyze'/'review' on something that is not a paper
+    ("Analyze this CSV of GPU benchmark results.", False),
+    ("Analyze the sentiment of this sentence: I love it.", False),
+    ("Analyze my training logs and tell me why the loss spiked.", False),
+    ("Review the paper submission guidelines for NeurIPS.", False),
+    ("What is the review process for arXiv papers?", False),
+    ("Review my Python code for bugs.", False),
+    ("Our analyst will look at it tomorrow.", False),                       # 'analyst' (the job) is not 'analysis'
+]
+for text, expected in ANALYSIS_CASES:
+    check(f"analisis {'fuerza' if expected else 'no fuerza'}: {text[:60]}", bool(mw._ANALYSIS_TRIGGER_RE.search(text)) == expected)
 
 
 # ---------------------------------------------------------------- unit: _tool_call_rejection
@@ -76,8 +170,8 @@ def err(cid, name="search_paper_content"):
 
 
 mid = mw.ForceChallengeSkillMiddleware()
-H = HumanMessage(content="Me inclino a pensar que X. Busca evidencia en contra.")
-plain = HumanMessage(content="Explícame LoRA")
+H = HumanMessage(content="I lean toward thinking X. Find evidence against that.")
+plain = HumanMessage(content="Explain LoRA to me")
 
 # a) non-triggering message: nothing is ever blocked, even arXiv tools
 m = [plain, ai(("search_papers", {"q": "x"}, "a"))]
@@ -105,13 +199,13 @@ res = [mid._tool_call_rejection(req("search_paper_content", {"q": str(i)}, str(i
 check("5 llamadas en paralelo: pasan 3 y se bloquean 2", res == [True, True, True, False, False], str(res))
 
 # f) a new HumanMessage resets the count
-m = [H, ai(*[("search_paper_content", {"q": str(i)}, str(i)) for i in range(3)]), ok("0"), ok("1"), ok("2"), HumanMessage(content="Otra vez: busca evidencia en contra de Y"),
+m = [H, ai(*[("search_paper_content", {"q": str(i)}, str(i)) for i in range(3)]), ok("0"), ok("1"), ok("2"), HumanMessage(content="Once more: find evidence against Y"),
      ai(("search_paper_content", {"q": "z"}, "z"))]
 check("mensaje nuevo reinicia el contador", mid._tool_call_rejection(req("search_paper_content", {"q": "z"}, "z", m)) is None)
 
 # g) compare skill limits differ
 cmp_ = mw.ForceCompareSkillMiddleware()
-Hc = HumanMessage(content="¿Se contradicen los papers 1706.03762 y 1707.06347?")
+Hc = HumanMessage(content="Do the papers 1706.03762 and 1707.06347 contradict each other?")
 m = [Hc, ai(*[("search_paper_content", {"q": str(i), "paper_id": "x"}, str(i)) for i in range(5)])]
 res = [cmp_._tool_call_rejection(req("search_paper_content", {"q": str(i), "paper_id": "x"}, str(i), m)) is None for i in range(5)]
 check("compare: pasan 4 y se bloquea 1", res == [True, True, True, True, False], str(res))
@@ -176,7 +270,7 @@ async def integration_skill():
         checkpointer=InMemorySaver(),
     )
     cfg = {"configurable": {"thread_id": "t1"}}
-    r = await agent.ainvoke({"messages": [HumanMessage(content="Me inclino a pensar que X. Busca evidencia en contra.")]}, cfg)
+    r = await agent.ainvoke({"messages": [HumanMessage(content="I lean toward thinking X. Find evidence against that.")]}, cfg)
     res = tool_results(r)
     for x in res: print("     ", x)
     check("skill: 5 resultados de tool", len(res) == 5, str(len(res)))

@@ -22,7 +22,7 @@ from memory.memory_tools import MEMORY_FILE, _list_memory_entries, update_memory
 from memory.memory_rag import make_search_memory_tool
 from memory.paper_rag import make_search_paper_content_tool
 from memory.graph_tools import GRAPH_TOOLS
-from core.middleware import ExcludeToolsMiddleware, EnsureFinalAnswerMiddleware, PaperMemoryMiddleware, ArxivTimeoutMiddleware, ForcePaperAnalysisSkillMiddleware, ForceGraphSkillMiddleware, ForceChallengeSkillMiddleware, ForceCompareSkillMiddleware, UntrustedContentMiddleware, OutputImageGuardrailMiddleware
+from core.middleware import ExcludeToolsMiddleware, EnsureFinalAnswerMiddleware, PaperMemoryMiddleware, ArxivTimeoutMiddleware, ForcePaperAnalysisSkillMiddleware, ForceGraphSkillMiddleware, ForceChallengeSkillMiddleware, ForceCompareSkillMiddleware, UntrustedContentMiddleware, OutputImageGuardrailMiddleware, MemoryWriteGuardMiddleware
 from prompts.research_agent_prompt import SYSTEM_PROMPT
 from prompts.skills_prompt import CUSTOM_SKILLS_SYSTEM_PROMPT
 from prompts.memory_prompt import MEMORY_PROMPT_TEMPLATE, MEMORY_SEARCH_PROMPT
@@ -228,6 +228,13 @@ MEASURED_PROMPT_TOKENS = 19_100
 # the first search.
 MIN_RECOMMENDED_NUM_CTX = 24_000
 
+# The most context the app asks Ollama for, whatever the model supports. Asking for the model's own maximum
+# (262,144 tokens for qwen3.5:4b) made a 4B model take ~13.7 GB (the KV cache grows ~39 KB per token) and sit mostly on the
+# CPU of a 6 GB GPU / 15 GB RAM laptop: measured with scratch/ctx_probe.py, generation ran at 13 tokens/s at 32,768 and
+# 3.6 at 131,072, and the machine was left with under 1 GB of free RAM. Summarization triggers at 85% of this value
+# (see build_agent), so a cap also makes it happen at all.
+MAX_NUM_CTX = 32_768
+
 MAX_TOOL_CALLS_PER_MESSAGE = 30
 
 _agent_cache: "OrderedDict[tuple, Any]" = OrderedDict()
@@ -420,6 +427,10 @@ async def build_agent(
             # analyses, low enough to end a loop.
             ToolCallLimitMiddleware(run_limit=MAX_TOOL_CALLS_PER_MESSAGE, exit_behavior="continue"),
             ExcludeToolsMiddleware(excluded=HIDDEN_TOOLS),
+            # SECURITY_REVIEW.md #12: no update_memory/edit_memory by the model once the
+            # conversation has read outside text. Listed before PaperMemoryMiddleware, which
+            # writes paper entries in code (.func) and is not affected by this.
+            MemoryWriteGuardMiddleware(),
             EnsureFinalAnswerMiddleware(max_retries=2),
             # Placed BEFORE PaperMemoryMiddleware deliberately, not just appended at the
             # end: LangChain composes wrap_tool_call middleware with the first-listed one

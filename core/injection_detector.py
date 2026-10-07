@@ -8,7 +8,8 @@ the person at the keyboard that a paper they asked about just tried to give thei
 This is a SMELL detector, not a security boundary, and it is deliberately tuned for few false alarms
 over catching everything:
   * it can be evaded (paraphrase, other languages, encoding) — a paper that gets past it is still
-    handled by the defenses that don't depend on recognizing the text;
+    handled by the defenses that don't depend on recognizing the text, and `core/external_check.py`
+    gives the passages it lets through a second opinion with a decision model;
   * it WILL fire on papers ABOUT prompt injection, which quote exactly these phrases as examples —
     the notice says so, and shows the matched text so the reader can judge for themselves;
   * patterns are phrase-shaped, never single words ("dan", "assistant", "you are" alone would match

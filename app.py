@@ -17,14 +17,20 @@ from chainlit.types import ThreadDict
 # not just our own.
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
-from graph import build_agent, MIN_RECOMMENDED_NUM_CTX, MEASURED_PROMPT_TOKENS
+from graph import build_agent, MAX_NUM_CTX, MIN_RECOMMENDED_NUM_CTX, MEASURED_PROMPT_TOKENS
 from core.ollama_functions import get_ollama_models_info, extract_llm_metrics
 from core.huggingface_functions import get_huggingface_models_info
 from core.chainlit_data import build_data_layer, authenticate_local_user
 from core.companion_apps import launch_companion_apps
 from core.image_guard import MarkdownImageStreamFilter, strip_markdown_images
 from core.injection_detector import detect_injection, format_notice
-from core.middleware import _UNTRUSTED_CONTENT_TOOLS, _UNTRUSTED_LABEL_TOOLS
+from core.middleware import (
+    _MEMORY_WRITE_TOOLS,
+    _UNTRUSTED_CONTENT_TOOLS,
+    _UNTRUSTED_LABEL_TOOLS,
+    pop_blocked_memory_writes,
+)
+from core import external_check, memory_proposals, output_check
 from observability.metrics_store import log_turn
 import pandas as pd
 
@@ -247,6 +253,136 @@ async def resume(thread: ThreadDict):
 
     await _send_chat_settings()
 
+async def _check_reply_for_steering(user_question: str, reply: str) -> None:
+    """After a turn that read outside text: ask the decision model whether the reply pushes the person
+    toward something they didn't ask for, and say so in the chat if it does. Notice only — see
+    core/output_check.py. Silent when `nimble` is not installed or anything goes wrong."""
+    try:
+        verdict = await asyncio.to_thread(output_check.check_reply, user_question, reply)
+        if not verdict.flagged:
+            logger.info("Reply check: %s", verdict.reason)
+            return
+        logger.warning("Reply check flagged the reply (%s, p=%.2f)", verdict.category, verdict.probability)
+        await cl.Message(content=output_check.format_notice(verdict), author="Security notice").send()
+    except Exception:
+        logger.exception("Reply check failed (does not affect the answer)")
+
+
+async def _check_external_text(results: list[tuple[str, str]]) -> None:
+    """After a turn that read outside text: a second opinion on the passages the phrase detector let
+    through. Notice only — see core/external_check.py. Silent when `nimble` is not installed or anything
+    goes wrong."""
+    try:
+        findings = await asyncio.to_thread(external_check.check_turn, results)
+        if not findings:
+            return
+        logger.warning("External text check flagged %d passage(s) (%s)", len(findings), sorted({f.tool for f in findings}))
+        await cl.Message(content=external_check.format_notice(findings), author="Security notice").send()
+    except Exception:
+        logger.exception("External text check failed (does not affect the answer)")
+
+
+_MAX_PENDING_SUGGESTIONS = 5
+
+
+async def _offer_memory_suggestion(text: str, model_already_saved: bool) -> None:
+    """After the answer: if the person's own message states something lasting, offer to save it.
+
+    Everything that matters is in core/memory_proposals.py — code rules first, the `nimble` decision
+    model as a veto/label, the exact text in the buttons' message, and a click required. The model
+    that answers the chat is not involved. With `nimble` not installed this is a silent no-op.
+    """
+    if model_already_saved:
+        return
+    try:
+        decision = await asyncio.to_thread(memory_proposals.decide, text)
+        if not decision.propose:
+            logger.info("No memory suggestion: %s", decision.reason)
+            return
+
+        # The buttons carry only an id; the text and category stay server-side, so nothing a client
+        # sends back can change what gets written. One use each.
+        suggestion_id = uuid.uuid4().hex
+        replaces = decision.replaces  # an entry of yours this message looks like a newer version of, or None
+        actions = []
+        if replaces:
+            actions.append(cl.Action(name="replace_memory", payload={"id": suggestion_id}, label=f"Replace [{replaces.entry_id}]"))
+        actions.append(cl.Action(name="save_memory", payload={"id": suggestion_id}, label="Save as new" if replaces else "Save"))
+        actions.append(cl.Action(name="dismiss_memory", payload={"id": suggestion_id}, label="Not now"))
+        pending = cl.user_session.get("memory_suggestions") or {}
+        pending[suggestion_id] = {"text": text.strip(), "category": decision.category, "actions": actions, "replaces": replaces}
+        while len(pending) > _MAX_PENDING_SUGGESTIONS:
+            pending.pop(next(iter(pending)))
+        cl.user_session.set("memory_suggestions", pending)
+
+        if replaces:
+            body = (
+                f"💾 **Update long-term memory?** (`{decision.category}`) This looks like a newer version of entry "
+                f"[{replaces.entry_id}]:\n\n> **Saved now:** {strip_markdown_images(replaces.content)[:300]}\n\n"
+                f"> **New:** {text.strip()}\n\n"
+                "_Suggested locally by `nimble`. Nothing changes unless you click; \"Replace\" overwrites the old entry._"
+            )
+        elif decision.duplicate_of:
+            # Offered, not swallowed: a wrong "this is already saved" would otherwise lose a statement silently.
+            body = (
+                f"💾 **Save to long-term memory?** (`{decision.category}`) Entry [{decision.duplicate_of.entry_id}] may "
+                f"already say this: {strip_markdown_images(decision.duplicate_of.content)[:300]}\n\n> {text.strip()}\n\n"
+                "_Suggested locally by `nimble`. Nothing is saved unless you click._"
+            )
+        else:
+            body = (
+                f"💾 **Save to long-term memory?** (`{decision.category}`)\n\n> {text.strip()}\n\n"
+                "_Suggested locally by `nimble`. Nothing is saved unless you click._"
+            )
+        await cl.Message(content=body, author="Memory", actions=actions).send()
+    except Exception:
+        logger.exception("Memory suggestion failed (does not affect the answer)")
+
+
+async def _take_memory_suggestion(action: cl.Action) -> dict | None:
+    """Pops the suggestion a button belongs to (one use) and removes both of its buttons."""
+    payload = action.payload if isinstance(action.payload, dict) else {}
+    suggestion_id = payload.get("id")
+    pending = cl.user_session.get("memory_suggestions") or {}
+    item = pending.pop(suggestion_id, None) if isinstance(suggestion_id, str) else None
+    for button in (item or {}).get("actions", [action]):
+        try:
+            await button.remove()
+        except Exception:
+            logger.debug("Could not remove a suggestion button", exc_info=True)
+    return item
+
+
+@cl.action_callback("save_memory")
+async def on_save_memory(action: cl.Action):
+    item = await _take_memory_suggestion(action)
+    if item is None:
+        await cl.Message(content="That suggestion is no longer available.", author="Memory").send()
+        return
+    result = await asyncio.to_thread(memory_proposals.save_confirmed, item["text"], item["category"])
+    logger.info("Memory suggestion confirmed by the user: %s", result)
+    await cl.Message(content=f"✅ {result}", author="Memory").send()
+
+
+@cl.action_callback("replace_memory")
+async def on_replace_memory(action: cl.Action):
+    item = await _take_memory_suggestion(action)
+    if item is None or item.get("replaces") is None:
+        await cl.Message(content="That suggestion is no longer available.", author="Memory").send()
+        return
+    related = item["replaces"]
+    result = await asyncio.to_thread(
+        memory_proposals.replace_confirmed, related.entry_id, item["text"], item["category"], related.fingerprint
+    )
+    logger.info("Memory replacement confirmed by the user: %s", result)
+    await cl.Message(content=f"✅ {result}", author="Memory").send()
+
+
+@cl.action_callback("dismiss_memory")
+async def on_dismiss_memory(action: cl.Action):
+    await _take_memory_suggestion(action)
+
+
 @cl.on_message
 async def main(message: cl.Message):
 
@@ -263,6 +399,17 @@ async def main(message: cl.Message):
     # (label, start of the matched text) already reported to the user during this turn, so reading
     # several chunks of the same paper doesn't repeat the same notice.
     warned_injections: set[tuple[str, str]] = set()
+    # True once the model itself saved something this turn: then no "save this?" suggestion is made
+    # for the same message (it would duplicate the model's own entry).
+    memory_written_by_model = False
+    # For the reply check (core/output_check.py): did THIS turn run a tool that returns outside text, and
+    # the model's reply exactly as generated — before the image filter, so an attempted leak is visible.
+    turn_read_external = False
+    raw_reply = ""
+    # (tool name, result text) of the outside-text tools of this turn, for the second opinion on what they said
+    # (core/external_check.py).
+    turn_external_results: list[tuple[str, str]] = []
+    pop_blocked_memory_writes()  # forget anything left over from an earlier turn
     conversation_metrics = {
         "llm_calls": 0,
         "tool_calls": 0,
@@ -326,7 +473,9 @@ async def main(message: cl.Message):
             None
         )
 
-        num_ctx = models_info[settings["model"]]["context_length"]
+        # The model's own limit, capped (see MAX_NUM_CTX in graph.py): a smaller model limit still wins, and still
+        # triggers the warning below.
+        num_ctx = min(models_info[settings["model"]]["context_length"], MAX_NUM_CTX)
 
         # Warned once per model per session, not on every message: the
         # message is informational, and repeating it each turn would bury
@@ -450,12 +599,27 @@ async def main(message: cl.Message):
 
                 step = steps.get(run_id)
 
+                # A memory tool that really ran and succeeded (a blocked call never gets here — see
+                # pop_blocked_memory_writes in the end-of-turn code below).
+                if tool_name in _MEMORY_WRITE_TOOLS:
+                    try:
+                        write_result = _format_tool_output(output)
+                        if _extract_tool_status(output) == "success" and not write_result.startswith("Error"):
+                            memory_written_by_model = True
+                    except Exception:
+                        logger.exception("Could not read a memory tool's result (does not affect the answer)")
+
                 # Tell the person when external text looks like an order to the AI. The other
                 # defenses neutralize it silently; this is the only place a human finds out.
                 # A heuristic (see core/injection_detector.py) — it can fire on papers ABOUT
                 # prompt injection, and the notice says so. Only for tools whose result is
                 # third-party text, and only what wasn't already reported earlier this turn.
                 if tool_name in _UNTRUSTED_CONTENT_TOOLS or tool_name in _UNTRUSTED_LABEL_TOOLS:
+                    turn_read_external = True
+                    try:
+                        turn_external_results.append((tool_name, _format_tool_output(output)))
+                    except Exception:
+                        logger.exception("Could not keep a tool result for the external text check (does not affect the answer)")
                     try:
                         fresh = [
                             d for d in detect_injection(_format_tool_output(output))
@@ -527,6 +691,9 @@ async def main(message: cl.Message):
 
                 if hasattr(chunk, "content") and chunk.content:
 
+                    if isinstance(chunk.content, str):
+                        raw_reply += chunk.content
+
                     # Tokens go to the browser as they are generated, INSIDE the model
                     # call — before OutputImageGuardrailMiddleware ever sees the finished
                     # message — and the client concatenates them, so an image is live the
@@ -571,6 +738,20 @@ async def main(message: cl.Message):
     tail = image_filter.finish()
     if tail:
         await msg.stream_token(tail)
+
+    # The model tried to change long-term memory in a conversation that has read outside text and
+    # MemoryWriteGuardMiddleware refused. Nothing was written; this is the only place the person
+    # finds out that something attempted it.
+    for blocked_tool in sorted(set(pop_blocked_memory_writes())):
+        await cl.Message(
+            content=(
+                f"⚠️ **Memory change blocked.** The assistant tried to change long-term memory "
+                f"(`{blocked_tool}`) in a conversation that has already read external text "
+                "(papers or search results). Nothing was saved or deleted. If you did not ask "
+                "for that, the text it read may have been trying to steer it."
+            ),
+            author="Security notice",
+        ).send()
 
     conversation_metrics["execution_time"] = (
         time.time() - conversation_start
@@ -648,3 +829,10 @@ async def main(message: cl.Message):
         content="📈 Session Metrics",
         elements=elements
     ).send()
+
+    # Last, so it never delays the answer or the metrics above. The reply check comes first: it is the
+    # safety one, and all of them use the same decision model, so the later calls find it already loaded.
+    if turn_read_external:
+        await _check_reply_for_steering(message.content, raw_reply)
+        await _check_external_text(turn_external_results)
+    await _offer_memory_suggestion(message.content, memory_written_by_model)

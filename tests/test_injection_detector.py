@@ -40,7 +40,12 @@ def labels(text: str) -> set[str]:
 # --- 1. the hostile papers (not independent) -------------------------------------------------
 def test_hostile_papers_are_flagged():
     for f in sorted((REPO / "tests" / "security" / "hostile_papers").glob("*.md")):
-        check(f"hostile paper flagged: {f.name}", bool(detect_injection(f.read_text(encoding="utf-8"))))
+        flagged = bool(detect_injection(f.read_text(encoding="utf-8")))
+        if f.name.endswith("_paraphrase.md"):
+            # Written to get past the phrase detector, for the second opinion in core/external_check.py to catch.
+            check(f"paraphrased hostile paper is NOT flagged by the phrases (by design): {f.name}", not flagged)
+        else:
+            check(f"hostile paper flagged: {f.name}", flagged)
 
 
 # --- 2. injection phrasings that do not come from those papers -------------------------------

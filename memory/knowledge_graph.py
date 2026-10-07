@@ -36,6 +36,7 @@ from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer, util
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
+from memory import author_aliases
 from memory.memory_tools import MEMORY_FILE, _list_memory_entries, _parse_kv_block
 
 GRAPH_DB_PATH = (Path(__file__).parent / "store" / "graph.sqlite").resolve()
@@ -125,6 +126,16 @@ def _display_score(name: str) -> tuple[int, bool]:
 
 def _upsert_author(conn: sqlite3.Connection, name: str) -> str:
     author_id = f"author:{fold_text(name)}"
+
+    # A person confirmed that this spelling is the same researcher as another node
+    # (memory/author_aliases.py): the edges go to that node, and no node is created for this spelling.
+    alias = author_aliases.lookup(author_id)
+    if alias is not None:
+        canonical_id, canonical_label = alias
+        if conn.execute("SELECT 1 FROM nodes WHERE id = ?", (canonical_id,)).fetchone() is None:
+            upsert_node(conn, canonical_id, canonical_label, "author")
+        return canonical_id
+
     row = conn.execute("SELECT label FROM nodes WHERE id = ?", (author_id,)).fetchone()
 
     if row is None or _display_score(name) > _display_score(row[0]):

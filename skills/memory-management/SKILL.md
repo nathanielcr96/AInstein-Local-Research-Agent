@@ -9,7 +9,7 @@ Long-term memory (`memory/store/long_term.md`) is not a transcript — it's a cu
 
 ## Save the topic first, before you go do the work it implies
 
-If the user's message states a new research direction, goal, or preference, call `update_memory` for it **right away** — before searching for papers, downloading anything, or doing other multi-step work the message also implies. A long detour of tool calls (searching, downloading, reading full paper content) can run long enough that you lose track of the fact you meant to save something, and the turn can end without it ever happening. Saving first costs one tool call and removes that risk entirely; saving "at the end, once the research part is done" does not reliably happen.
+If the user's message states a new research direction, goal, or preference, call `update_memory` for it **right away** — before searching for papers, downloading anything, or doing other multi-step work the message also implies. A long detour of tool calls (searching, downloading, reading full paper content) can run long enough that you lose track of the fact you meant to save something, and the turn can end without it ever happening. Saving first costs one tool call and removes that risk entirely; saving "at the end, once the research part is done" does not reliably happen. There is now a second reason: as soon as a conversation reads a paper or search results, memory writes are blocked in it, so anything you meant to save has to be saved before that first read.
 
 ## Deciding what's worth saving
 
@@ -20,7 +20,7 @@ Save something only if it would actually change how you help in a *future* conve
 - `preference` — how the user wants you to behave, going forward.
 - `research_topic` — an active line of research the user is pursuing.
 - `keyword` — a term/concept worth resurfacing later.
-- `paper` — details about a specific paper. Note: `download_paper`, `get_abstract`, and `read_paper` already record these automatically (via a middleware) every time you use them — you don't need to call `update_memory` yourself just because you looked at a paper. Only add to a paper's entry yourself (via `edit_memory`, using its existing id) when you have a genuine synthesis to add: a specific finding, number, or conclusion beyond the abstract.
+- `paper` — details about a specific paper. Note: `download_paper`, `get_abstract`, and `read_paper` already record these automatically (via a middleware) every time you use them — you don't need to call `update_memory` yourself just because you looked at a paper. Do not try to add your own findings to a paper's entry afterwards: once a conversation has read paper text or search results, `update_memory` and `edit_memory` are blocked in it (the call returns an error and nothing is saved). Say the finding in your answer instead.
 - `note` — anything else worth remembering that doesn't fit the above.
 
 ## Add vs. correct — don't create duplicates

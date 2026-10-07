@@ -5,6 +5,7 @@ import json
 import logging
 import re
 import sqlite3
+import threading
 from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware.types import AgentMiddleware, ExtendedModelResponse, ModelResponse
@@ -38,6 +39,7 @@ from memory.knowledge_graph import (
 from core.tools import read_skill
 from core.arxiv_download import _CONTENT_WARNING, _CONTENT_WARNING_FOOTER
 from memory.graph_tools import _GRAPH_LABEL_WARNING, _GRAPH_LABEL_WARNING_FOOTER
+from memory.memory_rag import _MEMORY_EXTERNAL_SOURCE_WARNING
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -136,7 +138,52 @@ class ExcludeToolsMiddleware(AgentMiddleware[Any, Any, Any]):
         return await handler(request)
 
 
-_ANALYSIS_TRIGGER_RE = re.compile(r"\banalys|\banalyz", re.IGNORECASE)
+# When to force `paper-analysis`. English only: AInstein is used in English.
+#
+# The skill's own description (skills/paper-analysis/SKILL.md) promises it for "summarize this paper",
+# "TL;DR", "is this worth reading", "what's your take", "what does this paper actually say"... but this
+# trigger used to be just the literal words analysis/analyze, so on a labelled set of 15 such requests it
+# forced the skill in 3 (20%) — the rest depended on the model choosing to call read_skill itself, which
+# SECURITY-adjacent live tests showed small models often don't. The phrases below are the ones the
+# description itself lists, plus a verb-and-noun rule (summarize/explain/review/break down ... a paper, an
+# arXiv id) kept deliberately narrow: no bare "summarize" or "explain", which would load this long skill
+# for "explain how self-attention works" or "summarize our conversation". The literal words stay as they
+# were. A narrow factual question about a paper ("what learning rate do they use?") deliberately does not
+# match — the skill excludes it.
+#
+# Cost of a false positive: the skill's instructions are added to the turn (no tool limits come with this
+# skill), so it is cheap compared with the evidence skills below, where a wrong match blocks tools.
+#
+# Second round: the phrasings a decision model recognised on messages written AFTER the first rules were
+# frozen and the rules missed ("overview of 'X'", "key takeaways from <id>", "the gist of <id>", "critique the
+# paper", "your honest opinion of the paper", "should I bother reading", "is the RWKV paper any good", "quick
+# take on the paper"). And two exclusions for the literal word: "analyze this CSV / the sentiment of this
+# sentence" is not a paper analysis (also "analyst", the job, no longer matches).
+_QUOTED_TITLE = r"['\"“‘][A-Z][^'\"”’]{3,80}['\"”’]"
+_PAPER_NOUN = r"(?:papers?|articles?|preprints?|studies|study|arxiv\b|\d{4}\.\d{4,5}|" + _QUOTED_TITLE + r")"
+_ANALYSIS_NOT_PAPER = (
+    r"(?!\s+(?:of |on )?(?:(?:the|this|that|my|our|these|those|a|an|some|any)\s+)?"
+    r"(?:csv|datasets?|data|sentiment|sentences?|text|code|spreadsheets?|(?:training |system |server |error |access )?logs?|numbers|tables?|files?)\b)"
+)
+_ANALYSIS_TRIGGER_RE = re.compile(
+    r"\banaly(?:s(?:e|es|ed|ing|is)|z(?:e|es|ed|ing))\b" + _ANALYSIS_NOT_PAPER +
+    r"|\b(?:summari[sz]\w*|summary|overview|gist|digest|takeaways?|key points|main (?:contributions|ideas|findings)|"
+    r"explain|break(?:ing)? down|walk me through|go through|critique|critici[sz]e|evaluate|assess)\b[^.?!]{0,60}?" + _PAPER_NOUN +
+    # "review" is ambiguous (peer review, "the review process for arXiv papers", "paper submission guidelines"): only
+    # "review the/this/that ... paper" and "review <arXiv id>"
+    r"|\breview (?:the|this|that|my) (?:\S+ ){0,5}?(?:paper|preprint|article)\b(?!\s+(?:submission|guidelines|process|deadline|format|template))"
+    r"|\breview (?:arxiv ?)?\d{4}\.\d{4,5}\b"
+    r"|\btl;?\s?dr\b"
+    r"|\bworth (?:reading|my time|a read|the read|a look)\b|\bshould i (?:bother )?(?:read|reading)\b|\bbother reading\b"
+    r"|\b(?:what'?s|what is|what are) your (?:take|verdict|opinion|view)s? on\b|\byour (?:take|verdict) on\b"
+    r"|\b(?:honest )?(?:opinion|thoughts|assessment|view)s? (?:of|on|about)\b[^.?!]{0,40}?" + _PAPER_NOUN +
+    r"|\b(?:quick|short|brief) (?:take|verdict|summary|overview|read|look)\b[^.?!]{0,40}?" + _PAPER_NOUN +
+    r"|\bis (?:the |this |that )?[^.?!]{1,40}? paper (?:any good|good|solid|reliable|credible|worth)\b"
+    r"|\bwhat does (?:this|the|that|[\w .'-]{1,40}?) paper (?:actually|really) says?\b"
+    r"|\bwhat does (?:arxiv ?)?\d{4}\.\d{4,5} (?:actually|really) say\b"
+    r"|\bdeep[- ]dive\b|\bin-?depth (?:look|review|summary|read)\b",
+    re.IGNORECASE,
+)
 
 _FORCED_SKILL_MARKER = "[auto-loaded: paper-analysis skill]"
 
@@ -240,8 +287,8 @@ class ForcePaperAnalysisSkillMiddleware(AgentMiddleware[Any, Any, Any]):
 
         injected = SystemMessage(
             content=(
-                f"{_FORCED_SKILL_MARKER} The user's message contains "
-                "\"analysis\"/\"analyze\", so the paper-analysis skill's full "
+                f"{_FORCED_SKILL_MARKER} The user's message asks for an analysis, "
+                "summary or verdict on a paper, so the paper-analysis skill's full "
                 "instructions are loaded below automatically — you do not need "
                 "to (and should not) call read_skill for it yourself. Follow "
                 "these instructions for this turn:\n\n" + depth_line + skill_text
@@ -262,7 +309,30 @@ class ForcePaperAnalysisSkillMiddleware(AgentMiddleware[Any, Any, Any]):
 # knowledge graph throughout this project) and the exact phrase "knowledge
 # graph" avoid that collision while still covering how it's actually asked
 # about in practice.
-_GRAPH_TRIGGER_RE = re.compile(r"\bgrafo\b|\bknowledge graph\b", re.IGNORECASE)
+#
+# English only. Beyond the phrase itself, the skill's description covers "connections between papers, shared
+# authors, co-authorship, related topics/keywords" — which people ask without ever saying "graph" ("show me the
+# co-authors of X", "which authors appear in more than one of my papers"), and a bare-phrase trigger missed 8 of
+# 10 such requests. Those are listed below. The phrase "knowledge graph" is NOT matched when it is the topic of a
+# paper ("summarize the paper on knowledge graph embeddings"): a false match here loads the wrong skill.
+#
+# Second round: "which researchers appear in several of my saved papers", "written anything with", "most
+# connected authors", "worked together" — and two exclusions: a plot ("the graph in Figure 3") and a general
+# statistic ("how many co-authors does a typical paper have").
+_GRAPH_TRIGGER_RE = re.compile(
+    r"\b(?:my|the|our) (?:knowledge[- ])?graph\b(?! (?:neural|embedding|network|database|attention|in (?:fig|figure|panel|plot)|of (?:fig|figure)))"
+    # the phrase on its own ("what is a knowledge graph?") is a question about a concept; it counts after a verb of use
+    r"|\b(?:in|from|using|use|via|query|search|check|ask|consult)\s+(?:the |my |our |a )?knowledge[- ]graph\b(?! (?:embedding|completion|neural|reasoning|database|construction|alignment|attention|question|learning))"
+    r"|\bco-?authors? (?:of|for|with)\b|\bmy co-?authors?\b|\bcollaborat(?:ed|es|ors?|ions?)\b"
+    r"|\bshar(?:e|es|ed|ing) (?:an? )?(?:co-?)?authors?\b|\bauthors? in common\b|\bcommon authors?\b"
+    r"|\bwhich authors\b[^.?!]{0,60}\b(?:my|saved|collection|library|appear|more than one|several|both|common|worked|collaborat)\b"
+    r"|\bwho (?:has|have|did)\b[^.?!]{0,40}\bworked with\b|\bworked together\b"
+    r"|\b(?:authors|researchers)\b[^.?!]{0,40}\b(?:appear(?:s|ing)? in|in (?:several|multiple|more than one|common|both)|my (?:saved )?(?:papers|collection))\b"
+    r"|\bwritten (?:anything|a paper|papers) (?:together )?with\b|\bpublished (?:anything )?with\b"
+    r"|\b(?:most|best|well)[- ]connected (?:authors|researchers|papers|nodes|keywords)\b"
+    r"|\b(?:related|similar|connected) (?:topics|keywords)\b|\bkeywords?\b[^.?!]{0,40}\b(?:similar|related|connected)\b",
+    re.IGNORECASE,
+)
 
 class _ForceSkillMiddleware(AgentMiddleware[Any, Any, Any]):
     """Deterministically injects a skill's full instructions right after
@@ -449,8 +519,8 @@ class _ForceSkillMiddleware(AgentMiddleware[Any, Any, Any]):
 
 
 class ForceGraphSkillMiddleware(_ForceSkillMiddleware):
-    """Injects `knowledge-graph` when the message mentions "grafo"/"knowledge
-    graph".
+    """Injects `knowledge-graph` when the message asks about the user's own graph
+    of papers, authors and keywords (see `_GRAPH_TRIGGER_RE`).
 
     Verified live: even with a hardened GRAPH_PROMPT (an explicit worked
     example, an explicit "these are real tool calls, never write one out
@@ -465,18 +535,27 @@ class ForceGraphSkillMiddleware(_ForceSkillMiddleware):
 
     skill_name = "knowledge-graph"
     trigger = _GRAPH_TRIGGER_RE
-    reason = "mentions the knowledge graph"
+    reason = "asks about the knowledge graph (authors, co-authors, connections, related keywords)"
 
 
-# Spanish and English phrasings of "look for what argues against my
-# conclusion". Kept to explicit, unambiguous phrases (not a bare "against"
-# or "contra") so an ordinary sentence doesn't load a skill it doesn't need.
+# Phrasings (English only) of "look for what argues against my conclusion".
+# Kept to explicit, unambiguous phrases (not a bare "against" or "contradicts")
+# so an ordinary sentence doesn't load a skill it doesn't need: this skill
+# also BLOCKS arXiv tools (see `_NO_ARXIV_LOOKUPS`), so a wrong match costs more
+# than a missed one.
 _CHALLENGE_TRIGGER_RE = re.compile(
-    r"evidencia en contra|contra-?evidencia|counter-?evidence|evidence against"
-    r"|abogado del diablo|devil'?s advocate|poke holes|\brefut"
-    r"|challenge (my|this|the|our) (conclusion|hypothesis|claim|view)"
-    r"|cuestiona (mi|esta|la|nuestra) (conclusi|hip[oó]tesis|idea)"
-    r"|qu[eé] podr[ií]a estar mal|what could be wrong",
+    r"counter-?evidence|counter-?arguments?|evidence against"
+    r"|devil'?s advocate|poke holes|\brefut(?:e|es|ing|ation|ations)\b"
+    r"|(?:challenge|stress-?test) (?:my|this|the|our) (?:conclusion|hypothesis|claim|view|assumption|belief|idea)"
+    # "what could be wrong" alone is also what people ask about their own code; it counts about a conclusion
+    r"|what could be wrong (?:with|about|in) (?:my|this|the|our) (?:conclusion|hypothesis|claim|view|assumption|belief|idea|plan|reasoning|argument|theory)"
+    r"|why i (?:might|may|could) be wrong|am i wrong (?:about|that)"
+    r"|what contradicts (?:that|this|my|it)\b"
+    # second round, each anchored on "me/my/this" so a general question about a topic ("the arguments against
+    # deep learning for tabular data", which a decision model wrongly took for this skill at 0.81) never matches
+    r"|\bargue against (?:me|my|that|this|it)\b|\btear apart (?:my|this|the|our)\b"
+    r"|\bcase against (?:my|this|the|our) (?:conclusion|hypothesis|claim|view|assumption|belief|idea|plan)\b"
+    r"|\bwhere (?:might|may|could) i be wrong\b|\bwhere am i wrong\b",
     re.IGNORECASE,
 )
 
@@ -506,15 +585,31 @@ class ForceChallengeSkillMiddleware(_ForceSkillMiddleware):
     tool_limits = {**_NO_ARXIV_LOOKUPS, "search_paper_content": 3, "search_memory": 1}
 
 
-# "Do these two papers disagree / are they comparable". Requires either the
-# word "papers" (or an arXiv id) near a compare verb, or an explicit
-# agree/disagree/contradict phrase, so a bare "compare" (models, prices…)
-# doesn't load it.
+# "Do these two papers disagree / are they comparable" (English only). Requires
+# either the word "papers" (or an arXiv id) near a compare verb, or an explicit
+# agree/disagree/contradict/differ phrase about papers or results, so a bare
+# "compare" (models, prices…) or a bare "contradict" ("what contradicts that?",
+# which is a request for counter-evidence, not a comparison) doesn't load it.
+# Like the challenge skill, this one BLOCKS arXiv tools, so it errs on the side
+# of not matching: "are 2205.14135 and 2307.08691 reporting the same speedup?"
+# is deliberately not matched (two ids in one message also appear in "download
+# both of these").
+# "Anything up to the end of the sentence", where the dot inside an arXiv id
+# ("2305.18290") is not a sentence end: a plain [^.?!] stops at it.
+_NS = r"(?:[^.?!]|(?<=\d)\.(?=\d))"
 _COMPARE_TRIGGER_RE = re.compile(
-    r"se contradicen|se contradice\b|discrepan|discrepancia|\bdisagree|contradict"
-    r"|difieren|\bdo (these|the|both|they)\b[^.?!]{0,40}\b(agree|disagree|conflict)"
-    r"|compar\w*\b[^.?!]{0,40}\b(papers?|art[ií]culos|estudios)"
-    r"|compar\w*\b[^.?!]{0,80}\b\d{4}\.\d{4,5}",
+    r"\bdo (?:these|the|both|those|they|the two)\b" + _NS + r"{0,50}\b(?:agree|disagree|conflict|contradict|differ)"
+    r"|\b(?:contradict|disagree with|conflict with) each other\b"
+    r"|\bhow do (?:these|the|both|those) (?:two )?(?:papers?|studies|results|findings)\b" + _NS + r"{0,30}\bdiffer\b"
+    r"|\b(?:consistent|compatible|comparable)\b" + _NS + r"{0,40}\b(?:papers?|studies|findings)\b"
+    r"|\b(?:papers?|studies|results|findings)\b" + _NS + r"{0,60}\b(?:consistent|compatible|comparable)\b"
+    r"|compar\w*\b" + _NS + r"{0,40}\b(?:papers?|studies|articles)\b"
+    r"|compar\w*\b" + _NS + r"{0,80}\b\d{4}\.\d{4,5}"
+    # second round: the two papers named by id ("how do 2305.18290 and 2310.12036 differ"), and an explicit
+    # "do these two studies reach the same conclusion" / "which of these two papers is right"
+    r"|\bhow do \d{4}\.\d{4,5}\b" + _NS + r"{0,60}\bdiffer\b"
+    r"|\bdo (?:these|the|both) (?:two )?(?:papers?|studies|articles)\b" + _NS + r"{0,40}\b(?:reach|share|arrive at|come to|say|show|find|report)\b" + _NS + r"{0,25}\b(?:same|similar|different|opposite|conflicting)\b"
+    r"|\bwhich of (?:these|the) two (?:papers|studies|articles)\b",
     re.IGNORECASE,
 )
 
@@ -581,6 +676,79 @@ _STALL_PHRASE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# More ways of announcing work instead of doing it. Only used for a reply that
+# is *nothing but* the announcement (see _is_bare_announcement), never for the
+# prose around a JSON blob, so a loose phrase here cannot hit a real answer.
+# Measured offline on labelled replies (scratch/turn_tagging_eval.py): the
+# phrases above missed 5 of 10 invented stalls such as "Give me a second to
+# scan the appendix, then I'll answer."
+_STALL_EXTRA_RE = re.compile(
+    r"\b("
+    r"one moment"
+    r"|give me a (second|moment|minute)"
+    r"|allow me to"
+    r"|bear with me"
+    r"|hold on"
+    r"|i'?m going to (dig|look|read|go|scan|examine|check|fetch|pull|review)"
+    r"|(next|now|first),? i('ll| will| need to) (examine|look|scan|go through|read|review|fetch|check)"
+    r"|while i (go|read|look|scan|check|pull)"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+_BARE_ANNOUNCEMENT_MAX_CHARS = 160
+
+
+def _sentences(text: str) -> list[str]:
+    return [s for s in _SENTENCE_SPLIT_RE.split(text.strip()) if s]
+
+
+def _is_bare_announcement(text: str) -> bool:
+    """True for a reply that only announces more work: one sentence, short,
+    no digits and no "label: content" tail. A real answer that happens to
+    open with "Let me check the numbers: the baseline gets 26.0 BLEU..." has
+    content after the colon (and figures), so it is not a stall.
+    """
+    stripped = text.strip()
+    if len(stripped) > _BARE_ANNOUNCEMENT_MAX_CHARS or len(_sentences(stripped)) > 1:
+        return False
+    if re.search(r"\d", stripped) or re.search(r":\s*\S.{14,}", stripped):
+        return False
+    return bool(_STALL_PHRASE_RE.search(stripped) or _STALL_EXTRA_RE.search(stripped))
+
+
+# The model asks for permission to do what the user already asked for
+# ("Would you like me to download the paper first?"). The retry nudge makes it
+# act instead. Only counts when the reply is at most two sentences and the
+# FIRST one is the request, so an offer that follows real content ("Nothing
+# matched. Would you like me to search arXiv instead?") is left alone.
+_PERMISSION_PHRASE_RE = re.compile(
+    r"\b("
+    r"would you like me to (download|search|read|fetch|use|look|open|run|call|retrieve)"
+    r"|do you want me to (download|search|read|fetch|use|look|open|run|call|retrieve)"
+    r"|(can|could) you confirm"
+    r"|(should|shall) i (go ahead|proceed|download|search|read|fetch|use)"
+    r"|before i proceed"
+    r"|(give me|need|waiting for|wait for) (the |your )?go-?ahead"
+    r"|please confirm"
+    r")\b",
+    re.IGNORECASE,
+)
+_PERMISSION_MAX_CHARS = 200
+
+
+def _is_permission_request(text: str) -> bool:
+    stripped = text.strip()
+    sentences = _sentences(stripped)
+    if not sentences or len(stripped) > _PERMISSION_MAX_CHARS or len(sentences) > 2:
+        return False
+    return bool(_PERMISSION_PHRASE_RE.search(sentences[0]))
+
+
+# `Action: tool_name` / `Action Input: ...` — a ReAct-style call written as text.
+_REACT_ACTION_RE = re.compile(r"^\s*Action:\s*\w+\s*\n\s*Action Input:", re.IGNORECASE | re.MULTILINE)
+
 # A code span containing a bare `name(args)` call — not JSON — is just as
 # clear a sign the model described a tool call instead of issuing one.
 # Matches both a triple-backtick fence (verified live: qwen3.5:4b ended a
@@ -645,6 +813,9 @@ def _looks_like_textual_tool_call(content: str) -> bool:
     if _BARE_FUNCTION_CALL_RE.fullmatch(stripped):
         return True
 
+    if _REACT_ACTION_RE.search(stripped):
+        return True
+
     fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", stripped, re.DOTALL)
     if fence:
         raw_json = fence.group(1)
@@ -657,8 +828,9 @@ def _looks_like_textual_tool_call(content: str) -> bool:
         else:
             # No JSON at all — but short prose that only announces more work
             # ("Let me continue reading the paper before I answer.") is still
-            # a non-answer.
-            return len(stripped) < 400 and bool(_STALL_PHRASE_RE.search(stripped))
+            # a non-answer. A stall phrase inside a longer answer ("Let me
+            # check the numbers: the baseline gets 26.0...") is not.
+            return _is_bare_announcement(stripped)
 
     # A stall phrase in the surrounding prose means the model is still
     # mid-task, no matter how long that prose is ("...to get a complete view
@@ -746,6 +918,19 @@ _DEFLECTION_PHRASE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Looser deflections ("Is there anything specific you'd like to know?"). These
+# also close perfectly good answers, so they only count when the whole reply
+# is short.
+_DEFLECTION_SHORT_RE = re.compile(
+    r"(is there anything (specific|else)[\w\s']{0,30}(know|help)"
+    r"|what aspect (should|would)"
+    r"|(tell|let) me (know )?(what|how) you'?d like"
+    r"|please tell me what you'?d like"
+    r"|let me know how you'?d like to proceed)",
+    re.IGNORECASE,
+)
+_DEFLECTION_SHORT_MAX_CHARS = 160
+
 
 def _has_tool_result(messages) -> bool:
     return any(isinstance(msg, ToolMessage) for msg in messages)
@@ -771,11 +956,26 @@ def _is_deflection_despite_data(ai_message: AIMessage | None, messages) -> bool:
     content = ai_message.text if hasattr(ai_message, "text") else str(ai_message.content or "")
     if not content.strip():
         return False
-    return bool(_DEFLECTION_PHRASE_RE.search(content)) and _has_tool_result(messages)
+    deflects = bool(_DEFLECTION_PHRASE_RE.search(content)) or (
+        len(content.strip()) <= _DEFLECTION_SHORT_MAX_CHARS and bool(_DEFLECTION_SHORT_RE.search(content))
+    )
+    return deflects and _has_tool_result(messages)
+
+
+def _is_permission_request_final(ai_message: AIMessage | None) -> bool:
+    """The final text only asks permission to do what the user already asked."""
+    if ai_message is None or ai_message.tool_calls:
+        return False
+    content = ai_message.text if hasattr(ai_message, "text") else str(ai_message.content or "")
+    return _is_permission_request(content)
 
 
 def _needs_retry(ai_message: AIMessage | None, messages) -> bool:
-    return _is_empty_final(ai_message) or _is_deflection_despite_data(ai_message, messages)
+    return (
+        _is_empty_final(ai_message)
+        or _is_deflection_despite_data(ai_message, messages)
+        or _is_permission_request_final(ai_message)
+    )
 
 
 def _replace_ai_content(response: Any, text: str) -> Any:
@@ -1212,6 +1412,110 @@ class UntrustedContentMiddleware(AgentMiddleware[Any, Any, Any]):
         )
 
 
+# SECURITY_REVIEW.md finding #12 — an injection can make the model call update_memory /
+# edit_memory (save a false "preference", record a fake authorization, delete an entry).
+# The adversarial suite could not make qwen3.5:4b or llama3.2:3b do it (0 of 4 valid runs),
+# but the exposure is structural: nothing in the code stopped it, and that is the kind of
+# guarantee a prompt can't give. This is the deterministic rule: once a conversation
+# contains text from outside — anything in the untrusted sets above, or a memory entry
+# tagged `Source: external` — the model can no longer change long-term memory in it.
+#
+# Deliberately NOT model- or classifier-based: no judgment about whether the text "looks"
+# hostile, so there is nothing to paraphrase around. It costs something real: the model can
+# no longer add its own synthesis to a paper's entry after reading it (that used to be
+# suggested in ARXIV_PROMPT). The automatic paper entries are unaffected — PaperMemoryMiddleware
+# writes them in code, not through the tool call this intercepts.
+#
+# The whole visible history counts, not just the current turn: with "Memory" on, the
+# checkpointer keeps a paper read in turn 1 in the model's context in turn 5.
+_MEMORY_WRITE_TOOLS: frozenset[str] = frozenset({"update_memory", "edit_memory"})
+
+MEMORY_WRITE_BLOCKED_PREFIX = "Blocked: long-term memory cannot be changed in this conversation"
+
+_MEMORY_WRITE_BLOCKED_MESSAGE = (
+    MEMORY_WRITE_BLOCKED_PREFIX + ", because it already contains text from external sources "
+    "(papers, search results or graph labels) and that text could be steering this call. "
+    "Nothing was saved, edited or deleted. Do not retry and do not look for another tool to do it. "
+    "Tell the user in one sentence that you could not change memory in this conversation, and that "
+    "they can start a new conversation and ask again."
+)
+
+
+# A blocked call is answered inside wrap_tool_call and the real tool never runs, so LangGraph
+# emits no tool-end event for it — app.py cannot learn about it from the event stream (found live:
+# the block worked, the notice never appeared). The guard leaves a note here instead and app.py
+# collects the notes when the turn ends. One local user, so one shared list; the lock is for the
+# threads LangGraph may run tool nodes in.
+_blocked_memory_writes: list[str] = []
+_blocked_memory_writes_lock = threading.Lock()
+
+
+def pop_blocked_memory_writes() -> list[str]:
+    """Names of the memory tools the guard blocked since the last call (and forgets them)."""
+    with _blocked_memory_writes_lock:
+        out = list(_blocked_memory_writes)
+        _blocked_memory_writes.clear()
+    return out
+
+
+def conversation_has_untrusted_content(messages: list[Any]) -> str | None:
+    """Name of the first tool whose result put outside text into this conversation, else None.
+
+    Looks at every ToolMessage in the visible history (see the note above for why not just the
+    current turn). A `search_memory` result only counts if it returned an entry tagged as external.
+    """
+    for m in messages or []:
+        if not isinstance(m, ToolMessage):
+            continue
+        name = getattr(m, "name", None)
+        if name in _UNTRUSTED_CONTENT_TOOLS or name in _UNTRUSTED_LABEL_TOOLS:
+            return name
+        if name == "search_memory" and _MEMORY_EXTERNAL_SOURCE_WARNING in (_tool_message_text(m) or ""):
+            return name
+    return None
+
+
+class MemoryWriteGuardMiddleware(AgentMiddleware[Any, Any, Any]):
+    """Rejects the model's calls to `update_memory` / `edit_memory` in a conversation that has
+    read outside text (see `conversation_has_untrusted_content`). The rejection is an ordinary
+    error ToolMessage starting with `MEMORY_WRITE_BLOCKED_PREFIX`, which app.py recognizes to tell
+    the person that an attempt was blocked."""
+
+    def _blocked(self, request: "ToolCallRequest") -> "ToolMessage | None":
+        if request.tool_call.get("name") not in _MEMORY_WRITE_TOOLS:
+            return None
+        state = request.state if isinstance(request.state, dict) else {}
+        source = conversation_has_untrusted_content(state.get("messages", []))
+        if source is None:
+            return None
+        logger.warning(
+            "Blocked %s: this conversation contains external text (first seen in the result of %s)",
+            request.tool_call.get("name"), source,
+        )
+        with _blocked_memory_writes_lock:
+            _blocked_memory_writes.append(request.tool_call.get("name"))
+        return ToolMessage(
+            content=_MEMORY_WRITE_BLOCKED_MESSAGE,
+            tool_call_id=request.tool_call["id"],
+            name=request.tool_call.get("name"),
+            status="error",
+        )
+
+    def wrap_tool_call(
+        self,
+        request: "ToolCallRequest",
+        handler: "Callable[[ToolCallRequest], ToolMessage | Any]",
+    ) -> "ToolMessage | Any":
+        return self._blocked(request) or handler(request)
+
+    async def awrap_tool_call(
+        self,
+        request: "ToolCallRequest",
+        handler: "Callable[[ToolCallRequest], Awaitable[ToolMessage | Any]]",
+    ) -> "ToolMessage | Any":
+        return self._blocked(request) or await handler(request)
+
+
 class PaperMemoryMiddleware(AgentMiddleware[Any, Any, Any]):
     """Auto-saves every arXiv paper the agent inspects into long-term memory.
 
@@ -1226,8 +1530,10 @@ class PaperMemoryMiddleware(AgentMiddleware[Any, Any, Any]):
     Fields accumulate across calls for the same paper_id (e.g. `get_abstract`
     contributes title/authors/abstract, a later `download_paper` adds the
     local file path) by merging into the existing entry via `edit_memory`
-    instead of creating a duplicate. The model can still enrich the entry
-    further with its own synthesis of key findings via `edit_memory`.
+    instead of creating a duplicate. The model can no longer enrich the entry
+    with its own synthesis via `edit_memory`: after a paper read the conversation is
+    tainted and MemoryWriteGuardMiddleware rejects that call. This class writes through
+    `.func`, not a tool call, so the guard never gets in its way.
     """
 
     def wrap_tool_call(
